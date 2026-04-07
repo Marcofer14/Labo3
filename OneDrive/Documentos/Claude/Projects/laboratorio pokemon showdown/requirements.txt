@@ -1,0 +1,20 @@
+# ── Pokémon Showdown interface ──────────────────────────────────
+poke-env>=0.8.1
+
+# ── PokeAPI & HTTP ───────────────────────────────────────────────
+requests>=2.31.0
+aiohttp>=3.9.0          # async fetching for PokeAPI
+
+# ── Data & numerics ─────────────────────────────────────────────
+numpy>=1.26.0
+pandas>=2.1.0
+
+# ── Reinforcement Learning ───────────────────────────────────────
+gymnasium>=0.29.0
+stable-baselines3>=2.2.0   # PPO, DQN, A2C — all compatible with gymnasium
+torch>=2.2.0               # PyTorch backend for SB3
+
+# ── Utilities ────────────────────────────────────────────────────
+tqdm>=4.66.0               # progress bars for data fetching
+python-dotenv>=1.0.0       # manage env variables (Showdown credentials)
+tabulate>=0.9.0            # pretty-print tables (para test_damage.py)
