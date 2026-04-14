@@ -203,6 +203,7 @@ def calc_damage(
     defender_hp_max:  Optional[int] = None,
     attacker_stat_mods: dict[str, int] = None,   # -6 a +6 por stat
     defender_stat_mods: dict[str, int] = None,
+    attacker_hp_pct:  float = 1.0,               # HP actual / HP máximo (para Water Spout)
 ) -> DamageResult:
     """
     Calcula el rango de daño de un movimiento según la fórmula oficial gen 3+.
@@ -258,10 +259,9 @@ def calc_damage(
         )
 
     # ── Ajuste de Power especial: Water Spout / Eruption ──────────
-    # Estos moves tienen potencia variable según el % de HP del atacante
-    attacker_hp_pct = attacker_stats["hp"] / (attacker_stats["hp"] or 1)
+    # Potencia variable según el % de HP actual del atacante (0.0–1.0)
     if move_name in ("water-spout", "eruption"):
-        power = max(1, int(power * attacker_hp_pct))
+        power = max(1, int(power * max(0.0, min(1.0, attacker_hp_pct))))
 
     # ── Stat ofensivo y defensivo ─────────────────────────────────
     if move_category == "physical":

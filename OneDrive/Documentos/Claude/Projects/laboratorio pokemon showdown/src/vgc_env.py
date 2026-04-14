@@ -1,219 +1,249 @@
 """
 vgc_env.py
 ─────────────────────────────────────────────────────────────────
-Environment Gymnasium para VGC (Gen 9 Dobles) usando poke-env.
+Environment VGC (Gen 9 Dobles) usando poke-env's DoublesEnv.
 
-Este archivo envuelve la interfaz de poke-env con Gymnasium para
-que el agente de RL (PPO, DQN, etc.) pueda interactuar con él.
+poke-env >= 0.8 usa la API de PettingZoo (paralela, dos agentes).
+Este archivo subclasea DoublesEnv e implementa los dos métodos
+abstractos requeridos:
 
-Flujo de una batalla:
-  env.reset() → observación inicial
-  env.step(action) → nueva observación, reward, done, info
-  ... (loop hasta que done == True)
+  calc_reward(battle)  → float
+  embed_battle(battle) → np.ndarray
 
-Espacio de acciones (action space):
-  Discreto. Cada entero mapea a una acción concreta:
-    0–3   → usar move 0–3 con primer Pokémon activo
-    4–7   → usar move 0–3 con segundo Pokémon activo
-    8–11  → usar move 0–3 + Terastal con primer Pokémon
-    12    → switch primer Pokémon al banqueado 0
-    13    → switch primer Pokémon al banqueado 1
-    14    → switch segundo Pokémon al banqueado 0
-    15    → switch segundo Pokémon al banqueado 1
+Para entrenar con stable-baselines3 (que espera Gymnasium single-agent),
+se usa SingleAgentWrapper, que convierte el env paralelo en uno estándar
+donde el agente1 es el que entrenamos y el agente2 es un oponente bot.
 
-  Total: 16 acciones discretas
+Flujo:
+  env   = VGCEnv(team=team_str, battle_format="gen9vgc2025regg")
+  opp   = RandomPlayer(battle_format="gen9vgc2025regg", team=team_str)
+  gym_env = SingleAgentWrapper(env, opp)
+  # gym_env ya tiene obs = {"observation": array, "action_mask": array}
+  # Usar FlatObsWrapper para PPO estándar de SB3
 
-Función de recompensa:
-  Se acumula por turno y al final de la batalla:
-  +  daño % infligido × W_DMG_DEALT
-  -  daño % recibido  × W_DMG_TAKEN
-  +  KO infligido     × W_KO
-  -  KO recibido      × W_KO_TAKEN
-  +  movimiento SE    × W_SUPER_EFF
-  +  acción defensiva exitosa × W_DEFENSIVE
-  +  victoria final   × W_WIN
-  -  derrota final    × W_WIN
+Espacio de acciones (DoublesEnv, Gen 9):
+  MultiDiscrete([107, 107])  — una acción por cada Pokémon activo
+  Mapeo de cada entero:
+    -2     → default (poke-env elige)
+    -1     → rendirse
+     0     → pass
+     1–6   → switch al Pokémon de equipo N
+     7–11  → move 1, target -2..+2
+    12–16  → move 2, target -2..+2
+    17–21  → move 3, target -2..+2
+    22–26  → move 4, target -2..+2
+    27–46  → + mega evolve
+    47–66  → + z-move
+    67–86  → + dynamax
+    87–106 → + Terastal
 """
 
-import numpy as np
-from gymnasium import spaces
-import asyncio
-from typing import Optional
+from __future__ import annotations
 
-try:
-    from poke_env.environment import Battle, Pokemon, Move
-    from poke_env.player import Gen9EnvSinglePlayer
-    POKE_ENV_AVAILABLE = True
-except ImportError:
-    POKE_ENV_AVAILABLE = False
-    print("⚠ poke-env no instalado. Instalar con: pip install poke-env")
+import numpy as np
+from typing import Optional
+from pathlib import Path
+from gymnasium import spaces
+
+from poke_env.environment import DoublesEnv
+from poke_env.battle.double_battle import DoubleBattle
+from poke_env.battle.weather import Weather
+from poke_env.battle.field import Field
+from poke_env.battle.pokemon import Pokemon as PokemonObj
 
 from src.state_encoder import StateEncoder
-from src.damage_calc import calc_damage, BattleConditions
-from src.utils import (
-    load_all_data, parse_team, calc_all_stats,
-    get_move, get_pokemon, get_effectiveness
-)
-from pathlib import Path
+from src.damage_calc import BattleConditions
+from src.utils import load_all_data, parse_team, calc_all_stats, get_pokemon
 
 # ── Pesos de la función de recompensa ─────────────────────────────
-# Estos valores son los que habrá que tunear durante el entrenamiento.
 W_DMG_DEALT  =  1.0   # por cada 1% de HP infligido
 W_DMG_TAKEN  = -0.8   # por cada 1% de HP recibido
 W_KO         =  3.0   # por cada KO infligido
 W_KO_TAKEN   = -2.5   # por cada KO recibido
-W_SUPER_EFF  =  0.5   # bonus por usar movimiento superefectivo (x2 o x4)
-W_DEFENSIVE  =  0.3   # bonus por acción defensiva exitosa (Protect que bloqueó, switch útil)
-W_WIN        = 15.0   # recompensa/penalidad final por ganar/perder
+W_WIN        = 15.0   # recompensa / penalidad final
 
-# ── Número de acciones discretas ──────────────────────────────────
-N_ACTIONS = 16
+# ── Mapeos de clima y terreno ──────────────────────────────────────
+WEATHER_MAP = {
+    Weather.RAINDANCE:     "rain",
+    Weather.PRIMORDIALSEA: "rain",
+    Weather.SUNNYDAY:      "sun",
+    Weather.DESOLATELAND:  "sun",
+    Weather.SANDSTORM:     "sandstorm",
+    Weather.SNOWSCAPE:     "snow",
+    Weather.HAIL:          "snow",
+}
+TERRAIN_MAP = {
+    Field.GRASSY_TERRAIN:   "grassy",
+    Field.ELECTRIC_TERRAIN: "electric",
+    Field.PSYCHIC_TERRAIN:  "psychic",
+    Field.MISTY_TERRAIN:    "misty",
+}
 
 
-class VGCEnv(Gen9EnvSinglePlayer if POKE_ENV_AVAILABLE else object):
+class VGCEnv(DoublesEnv):
     """
-    Environment VGC para RL.
+    Environment VGC para RL, listo para stable-baselines3.
 
-    Hereda de Gen9EnvSinglePlayer de poke-env y lo adapta para:
-      • Formato dobles (VGC)
-      • Vector de observación del StateEncoder
-      • Función de recompensa diseñada para VGC
-      • Acción discreta con 16 opciones
+    Hereda de DoublesEnv (poke-env), que implementa la API PettingZoo
+    para batallas dobles de Gen 9.
 
-    Uso básico:
-        env = VGCEnv(team_path="team.txt")
-        obs, info = env.reset()
-        action = agent.predict(obs)
-        obs, reward, done, truncated, info = env.step(action)
+    Para entrenamiento con SB3:
+        from poke_env.environment import SingleAgentWrapper
+        from poke_env import RandomPlayer
+
+        env = VGCEnv(team=team_str, battle_format="gen9vgc2025regg")
+        opp = RandomPlayer(battle_format="gen9vgc2025regg", team=team_str)
+        gym_env = FlatObsWrapper(SingleAgentWrapper(env, opp))
+        model   = PPO("MlpPolicy", gym_env, ...)
     """
 
     def __init__(
         self,
-        team_path:  str | Path = "team.txt",
-        data_dir:   Optional[str] = None,
+        team_path: str | Path = "team.txt",
         **kwargs,
     ):
-        # Cargar datos y equipo
-        self.data       = load_all_data()
-        self.team       = parse_team(team_path)
-        self.encoder    = StateEncoder(self.data["type_chart"], self.data["moves"])
+        # ── Cargar datos y equipo ─────────────────────────────────
+        self.data      = load_all_data()
+        self.team_list = parse_team(team_path)
 
-        # Precalcular stats del equipo propio
-        self.team_stats: dict[str, dict] = {}
-        self.team_types: dict[str, list] = {}
-        for p in self.team:
+        # Precalcular stats y tipos del equipo propio
+        self._team_stats: dict[str, dict] = {}
+        self._team_types: dict[str, list] = {}
+        for p in self.team_list:
             stats = calc_all_stats(p, self.data["pokemon"])
             poke_info = get_pokemon(p["name"], self.data["pokemon"])
-            self.team_stats[p["name"]] = stats
-            self.team_types[p["name"]] = poke_info["types"] if poke_info else []
+            self._team_stats[p["name"]] = stats
+            self._team_types[p["name"]] = poke_info["types"] if poke_info else []
 
-        # Obtener tamaño del observation space
-        dummy_obs = self.encoder.encode_manual([], [], [], {})
-        obs_size  = dummy_obs.shape[0]
+        # Leer el equipo como string en formato Pokepaste
+        tp = Path(team_path)
+        with open(tp, encoding="utf-8") as f:
+            team_str = f.read()
 
-        # Gymnasium spaces
-        self.observation_space = spaces.Box(
-            low   = 0.0,
-            high  = 1.0,
-            shape = (obs_size,),
-            dtype = np.float32,
-        )
-        self.action_space = spaces.Discrete(N_ACTIONS)
+        # ── Inicializar DoublesEnv ────────────────────────────────
+        # Los kwargs que no especifiquemos toman defaults de DoublesEnv:
+        #   battle_format = "gen8randombattle" → se sobreescribe con kwarg
+        #   server_configuration = LocalhostServerConfiguration
+        #   start_listening = True
+        super().__init__(team=team_str, **kwargs)
 
-        # Estado interno del reward
-        self._prev_own_hp:   list[float] = [1.0, 1.0]
-        self._prev_rival_hp: list[float] = [1.0, 1.0]
-        self._prev_own_ko:   int = 0
-        self._prev_rival_ko: int = 0
+        # ── Encoder del estado ────────────────────────────────────
+        self.encoder = StateEncoder(self.data["type_chart"], self.data["moves"])
+        obs_size = self.encoder.get_obs_shape()[0]
 
-        if POKE_ENV_AVAILABLE:
-            super().__init__(**kwargs)
+        # ── Observation spaces (se setean por agente en DoublesEnv) ──
+        # DoublesEnv.__setattr__ los envuelve automáticamente en
+        # Dict({"observation": Box, "action_mask": Box})
+        self.observation_spaces = {
+            agent: spaces.Box(low=0.0, high=1.0, shape=(obs_size,), dtype=np.float32)
+            for agent in self.possible_agents
+        }
 
-    # ── Gymnasium API ─────────────────────────────────────────────
+        # ── Estado interno para el reward ─────────────────────────
+        self._prev_own_hp:   dict[str, list] = {}
+        self._prev_rival_hp: dict[str, list] = {}
+        self._prev_own_ko:   dict[str, int]  = {}
+        self._prev_rival_ko: dict[str, int]  = {}
 
-    def calc_reward(self, last_battle: "Battle") -> float:
+    # ── Métodos abstractos requeridos por DoublesEnv ──────────────
+
+    def calc_reward(self, battle: DoubleBattle) -> float:
         """
-        Calcula el reward del turno actual comparando el estado
-        anterior con el estado actual.
+        Calcula el reward del turno.
 
-        poke-env llama a este método automáticamente en cada step().
+        poke-env llama a este método desde step() y reset().
         """
+        tag = battle.battle_tag
+
+        # Inicializar estado si es la primera vez que vemos esta batalla
+        if tag not in self._prev_own_hp:
+            self._prev_own_hp[tag]   = [1.0, 1.0]
+            self._prev_rival_hp[tag] = [1.0, 1.0]
+            self._prev_own_ko[tag]   = 0
+            self._prev_rival_ko[tag] = 0
+
         reward = 0.0
 
-        # ── Sacar HP actuales de los activos ──────────────────────
-        own_active   = list(last_battle.active_pokemon.values())
-        rival_active = list(last_battle.opponent_active_pokemon.values())
+        # ── HP actual de los activos ──────────────────────────────
+        own_active   = battle.active_pokemon            # List[Optional[Pokemon]]
+        rival_active = battle.opponent_active_pokemon   # List[Optional[Pokemon]]
 
-        curr_own_hp   = [p.current_hp_fraction for p in own_active   if p]
-        curr_rival_hp = [p.current_hp_fraction for p in rival_active if p]
+        curr_own_hp   = [p.current_hp_fraction if p else 0.0 for p in own_active]
+        curr_rival_hp = [p.current_hp_fraction if p else 0.0 for p in rival_active]
 
-        # Padding si hay menos de 2 Pokémon en campo
+        # Padding a longitud 2
         while len(curr_own_hp)   < 2: curr_own_hp.append(0.0)
         while len(curr_rival_hp) < 2: curr_rival_hp.append(0.0)
 
-        # ── Daño infligido y recibido ──────────────────────────────
-        for i in range(2):
-            dmg_dealt = self._prev_rival_hp[i] - curr_rival_hp[i]
-            dmg_taken = self._prev_own_hp[i]   - curr_own_hp[i]
+        # ── Daño infligido / recibido ─────────────────────────────
+        prev_own   = self._prev_own_hp[tag]
+        prev_rival = self._prev_rival_hp[tag]
 
+        for i in range(2):
+            dmg_dealt = prev_rival[i] - curr_rival_hp[i]
+            dmg_taken = prev_own[i]   - curr_own_hp[i]
             if dmg_dealt > 0:
                 reward += dmg_dealt * 100 * W_DMG_DEALT
-                # Bonus si fue superefectivo (necesita info del último movimiento)
-                # TODO: extraer tipo del último movimiento usado para verificar SE
             if dmg_taken > 0:
-                reward += dmg_taken * 100 * W_DMG_TAKEN  # W_DMG_TAKEN es negativo
+                reward += dmg_taken * 100 * W_DMG_TAKEN   # W_DMG_TAKEN es negativo
 
         # ── KOs ───────────────────────────────────────────────────
-        curr_rival_ko = sum(1 for p in last_battle.opponent_team.values() if p.fainted)
-        curr_own_ko   = sum(1 for p in last_battle.team.values()          if p.fainted)
+        curr_rival_ko = sum(1 for p in battle.opponent_team.values() if p.fainted)
+        curr_own_ko   = sum(1 for p in battle.team.values()          if p.fainted)
 
-        new_rival_ko = curr_rival_ko - self._prev_rival_ko
-        new_own_ko   = curr_own_ko   - self._prev_own_ko
+        new_rival_ko = curr_rival_ko - self._prev_rival_ko[tag]
+        new_own_ko   = curr_own_ko   - self._prev_own_ko[tag]
 
         reward += new_rival_ko * W_KO
-        reward += new_own_ko   * W_KO_TAKEN  # W_KO_TAKEN es negativo
+        reward += new_own_ko   * W_KO_TAKEN   # negativo
 
-        # ── Victoria / derrota final ──────────────────────────────
-        if last_battle.finished:
-            if last_battle.won:
+        # ── Victoria / derrota ────────────────────────────────────
+        if battle.finished:
+            if battle.won:
                 reward += W_WIN
             else:
                 reward -= W_WIN
-
-        # ── Actualizar estado previo ──────────────────────────────
-        self._prev_own_hp   = list(curr_own_hp)
-        self._prev_rival_hp = list(curr_rival_hp)
-        self._prev_rival_ko = curr_rival_ko
-        self._prev_own_ko   = curr_own_ko
+            # Limpiar estado de esta batalla
+            self._prev_own_hp.pop(tag, None)
+            self._prev_rival_hp.pop(tag, None)
+            self._prev_own_ko.pop(tag, None)
+            self._prev_rival_ko.pop(tag, None)
+        else:
+            self._prev_own_hp[tag]   = list(curr_own_hp)
+            self._prev_rival_hp[tag] = list(curr_rival_hp)
+            self._prev_rival_ko[tag] = curr_rival_ko
+            self._prev_own_ko[tag]   = curr_own_ko
 
         return reward
 
-    def embed_battle(self, battle: "Battle") -> np.ndarray:
+    def embed_battle(self, battle: DoubleBattle) -> np.ndarray:
         """
-        Convierte el estado actual de una batalla de poke-env
-        al vector numpy que entiende la red neuronal.
+        Convierte el estado actual de la batalla en el vector numpy
+        que entiende la red neuronal.
 
-        poke-env llama a este método para obtener la observación.
+        poke-env llama a este método para construir la observación.
+        Retorna solo el array puro (el env lo envuelve en el dict
+        {"observation": ..., "action_mask": ...} automáticamente).
         """
-        # ── Pokémon propios en campo ──────────────────────────────
+        # ── Propios en campo ─────────────────────────────────────
         own_field = []
-        for poke in battle.active_pokemon.values():
+        for poke in battle.active_pokemon:
             if poke is None:
                 continue
-            own_field.append(self._encode_poke_from_battle(poke, is_ally=True))
+            own_field.append(self._encode_poke(poke, is_ally=True))
 
-        # ── Pokémon rivales en campo ──────────────────────────────
+        # ── Rivales en campo ──────────────────────────────────────
         rival_field = []
-        for poke in battle.opponent_active_pokemon.values():
+        for poke in battle.opponent_active_pokemon:
             if poke is None:
                 continue
-            rival_field.append(self._encode_poke_from_battle(poke, is_ally=False))
+            rival_field.append(self._encode_poke(poke, is_ally=False))
 
         # ── Banqueados propios ────────────────────────────────────
+        active_species = {p.species for p in battle.active_pokemon if p}
         benched = []
-        active_names = {p.species for p in battle.active_pokemon.values() if p}
         for poke in battle.team.values():
-            if poke.species not in active_names and not poke.fainted:
+            if poke.species not in active_species and not poke.fainted:
                 benched.append({
                     "hp_pct": poke.current_hp_fraction,
                     "types":  [t.name.lower() for t in poke.types if t],
@@ -221,28 +251,18 @@ class VGCEnv(Gen9EnvSinglePlayer if POKE_ENV_AVAILABLE else object):
                 })
 
         # ── Condiciones del campo ─────────────────────────────────
-        weather = "none"
-        if battle.weather:
-            weather_map = {
-                "RAINDANCE": "rain", "SUNNYDAY": "sun",
-                "SANDSTORM": "sandstorm", "SNOW": "snow", "HAIL": "snow",
-            }
-            weather = weather_map.get(battle.weather.name, "none")
+        # battle.weather devuelve Dict[Weather, turn] en poke-env nuevo
+        weather_enum = next(iter(battle.weather), None)
+        weather = WEATHER_MAP.get(weather_enum, "none") if weather_enum else "none"
 
         terrain = "none"
-        if battle.fields:
-            terrain_map = {
-                "GRASSY_TERRAIN":   "grassy",
-                "ELECTRIC_TERRAIN": "electric",
-                "PSYCHIC_TERRAIN":  "psychic",
-                "MISTY_TERRAIN":    "misty",
-            }
-            for field in battle.fields:
-                terrain = terrain_map.get(field.name, "none")
-                if terrain != "none":
-                    break
+        for field_enum in battle.fields:
+            t = TERRAIN_MAP.get(field_enum)
+            if t:
+                terrain = t
+                break
 
-        trick_room = any(f.name == "TRICK_ROOM" for f in battle.fields)
+        trick_room = Field.TRICK_ROOM in battle.fields
 
         conditions = {
             "weather":    weather,
@@ -253,77 +273,97 @@ class VGCEnv(Gen9EnvSinglePlayer if POKE_ENV_AVAILABLE else object):
 
         return self.encoder.encode_manual(own_field, rival_field, benched, conditions)
 
-    def _encode_poke_from_battle(self, poke: "Pokemon", is_ally: bool) -> dict:
-        """Extrae los datos de un Pokémon de poke-env y los formatea para el encoder."""
+    # ── Helpers internos ──────────────────────────────────────────
+
+    def _encode_poke(self, poke: PokemonObj, is_ally: bool) -> dict:
+        """Convierte un Pokemon de poke-env al formato que espera StateEncoder."""
         types = [t.name.lower() for t in poke.types if t]
 
-        # Stats: usar los calculados si es nuestro, base stats si es del rival
-        if is_ally and poke.species in self.team_stats:
-            stats = self.team_stats[poke.species]
+        # Stats: reales si es nuestro, base stats estimados si es rival
+        if is_ally and poke.species in self._team_stats:
+            stats = self._team_stats[poke.species]
         else:
-            # Para rivales usamos base stats del dataset (estimación)
             poke_info = get_pokemon(poke.species, self.data["pokemon"])
-            if poke_info:
-                stats = {k: v for k, v in poke_info["stats"].items()}
-            else:
-                stats = {}
+            stats = dict(poke_info["stats"]) if poke_info else {}
 
-        # Modificadores de stat activos
+        # Modificadores de stat
         stat_mods = {}
-        if hasattr(poke, "boosts"):
-            boosts_map = {
+        if hasattr(poke, "boosts") and poke.boosts:
+            boost_map = {
                 "atk": "attack", "def": "defense",
                 "spa": "special-attack", "spd": "special-defense",
                 "spe": "speed",
             }
-            for abbr, full in boosts_map.items():
-                stat_mods[full] = getattr(poke.boosts, abbr, 0)
+            for abbr, full in boost_map.items():
+                val = getattr(poke.boosts, abbr, 0)
+                if val:
+                    stat_mods[full] = val
 
-        # Movimientos disponibles
-        moves = []
+        # Movimientos conocidos
+        moves_list = []
         for move in poke.moves.values():
-            move_dict = self.data["moves"].get(move.id, {})
+            move_dict = self.data["moves"].get(move.id)
             if move_dict:
                 move_dict = dict(move_dict)
                 move_dict["pp_left"] = move.current_pp
-            moves.append(move_dict)
+                moves_list.append(move_dict)
 
         return {
-            "hp_pct":          poke.current_hp_fraction,
-            "types":           types,
-            "stats":           stats,
-            "stat_mods":       stat_mods,
-            "status":          poke.status.name.lower() if poke.status else None,
-            "moves":           [m.get("name", "") for m in moves if m],
-            "tera_available":  not poke.terastallized,
-            "tera_type":       None,   # poke-env no siempre expone el tipo tera del rival
-            "item":            poke.item if hasattr(poke, "item") else None,
+            "hp_pct":         poke.current_hp_fraction,
+            "types":          types,
+            "stats":          stats,
+            "stat_mods":      stat_mods,
+            "status":         poke.status.name.lower() if poke.status else None,
+            "moves":          [m.get("name", "") for m in moves_list],
+            "tera_available": not poke.terastallized,
+            "tera_type":      None,
+            "item":           poke.item if hasattr(poke, "item") else None,
         }
 
-    def describe_embedding(self, obs: np.ndarray) -> None:
-        """
-        Imprime una descripción legible del vector de observación.
-        Útil para debugging.
-        """
-        print(f"Observation vector:")
-        print(f"  Shape:  {obs.shape}")
-        print(f"  Min:    {obs.min():.4f}")
-        print(f"  Max:    {obs.max():.4f}")
-        print(f"  Mean:   {obs.mean():.4f}")
-        print(f"  Non-zero: {(obs != 0).sum()} / {len(obs)}")
+
+# ── Wrapper para SB3 (extrae la observación del dict) ─────────────
+
+import gymnasium as gym
+
+class FlatObsWrapper(gym.Wrapper):
+    """
+    Convierte el env de SingleAgentWrapper (obs = Dict con
+    "observation" y "action_mask") en un env con obs = Box puro.
+
+    Necesario para usar PPO estándar de stable-baselines3.
+    Si querés usar MaskablePPO (sb3-contrib) podés prescindir de
+    este wrapper y pasar el env de SingleAgentWrapper directamente.
+    """
+
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        # Sobreescribir el observation_space con solo el Box interno
+        self.observation_space = env.observation_space["observation"]
+
+    def step(self, action):
+        obs_dict, reward, terminated, truncated, info = self.env.step(action)
+        return obs_dict["observation"], reward, terminated, truncated, info
+
+    def reset(self, **kwargs):
+        obs_dict, info = self.env.reset(**kwargs)
+        return obs_dict["observation"], info
 
 
-# ── Entry point de prueba ─────────────────────────────────────────
+# ── Entry point de prueba (sin Showdown) ─────────────────────────
 
 if __name__ == "__main__":
-    print("Verificando VGCEnv...")
-    team_path = Path(__file__).resolve().parent.parent / "team.txt"
+    from src.state_encoder import StateEncoder
+    from src.utils import load_all_data
 
-    env = VGCEnv(team_path=team_path)
+    data    = load_all_data()
+    encoder = StateEncoder(data["type_chart"], data["moves"])
+    obs     = encoder.encode_manual([], [], [], {})
 
-    print(f"  observation_space: {env.observation_space}")
-    print(f"  action_space:      {env.action_space}")
-    print(f"  n_actions:         {env.action_space.n}")
-    print(f"  obs_size:          {env.observation_space.shape[0]}")
-    print(f"  Team cargado:      {[p['name'] for p in env.team]}")
-    print(f"✓ VGCEnv OK (poke-env {'disponible' if POKE_ENV_AVAILABLE else 'NO instalado'})")
+    print(f"VGCEnv — verificación del StateEncoder:")
+    print(f"  obs_shape: {obs.shape}")
+    print(f"  min={obs.min():.4f}  max={obs.max():.4f}")
+    print(f"  ✓ StateEncoder OK")
+    print(f"")
+    print(f"  DoublesEnv action_space_size (Gen 9): {DoublesEnv.get_action_space_size(9)}")
+    print(f"  → MultiDiscrete([{DoublesEnv.get_action_space_size(9)}, {DoublesEnv.get_action_space_size(9)}])")
+    print(f"  ✓ VGCEnv listo para conectar a Showdown y entrenar.")

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# Modelos y checkpoints (pueden ser muy pesados)
+checkpoints/
+*.zip
+
+# Logs de entrenamiento
+logs/
+
+# Docker
+.dockerignore
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+.env.local

@@ -178,6 +178,25 @@
     .linkedin-btn:hover { background: var(--blue-light); border-color: var(--blue); }
     .linkedin-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
+    /* ── GITHUB REPO BUTTON ── */
+    .repo-section {
+      display: flex; justify-content: center; margin-top: 40px;
+    }
+    .repo-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-mid));
+      color: #fff; font-size: .88rem; font-weight: 700;
+      padding: 14px 28px; border-radius: 8px; text-decoration: none;
+      border: 1px solid var(--blue); transition: all .3s ease;
+      box-shadow: 0 4px 16px rgba(74,143,181,.24);
+    }
+    .repo-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(74,143,181,.32);
+      background: linear-gradient(135deg, var(--blue-mid), var(--blue));
+    }
+    .repo-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
     /* ── ABSTRACT / OBJETIVO BOX ── */
     .abstract-box {
       background: var(--white); border: 1px solid var(--border);
@@ -232,6 +251,7 @@
       box-shadow: var(--shadow-sm);
     }
     .arte-intro strong { color: var(--lavender); }
+    .arte-intro ul li { margin-bottom: 8px; }
 
     .dota-box {
       background: linear-gradient(135deg, #F5F2FC, #EAF4F9);
@@ -456,6 +476,13 @@
       </div>
 
     </div>
+
+    <div class="repo-section">
+      <a class="repo-btn" href="https://github.com/Marcofer14/Labo3" target="_blank">
+        <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" fill="white"/></svg>
+        Ver repositorio
+      </a>
+    </div>
   </section>
 
   <!-- ══════════════ 2. OBJETIVO ══════════════ -->
@@ -562,6 +589,46 @@
       nosotros jamás consideraríamos — porque nunca nadie nos dijo que estaban prohibidos.
     </div>
 
+    <!-- ── La Racionalidad Humana en Deep Learning ── -->
+    <div class="arte-intro" style="border-left-color: var(--gold); margin-bottom: 28px;">
+      <strong style="color: var(--gold);">La Racionalidad Humana en Deep Learning</strong>
+      <p style="margin-top: 12px; font-size: .95rem;">
+        Cuando hablamos de "superar" a los humanos, no hablamos de inteligencia. Hablamos de <strong>racionalidad bajo presión</strong>.
+        El cerebro humano es extraordinario calculando heurísticas rápidas — evaluamos una posición de Pokémon en milisegundos.
+        Pero ese mismo cerebro tiene límites estructurales: <strong>la memoria de trabajo captura solo 7±2 elementos simultáneamente</strong>.
+        Solo podemos considerar ramificaciones profundas durante decisiones críticas (cansador, mentally demanding).
+        Y bajo presión competitiva — en un torneo, en vivo, con dinero en juego — ese margen cognitivo se contrae.
+      </p>
+      <p style="margin-top: 12px; font-size: .95rem;">
+        Deep Learning no sufre este límite. Una red neuronal entrenada con Reinforcement Learning puede ponderar
+        <strong>simultáneamente cientos de variables</strong> en paralelo, sin fatiga, sin sesgo confirmativo.
+        Puede modelar el <strong>espacio de decisiones humanas</strong> no para replicarlas, sino para <strong>encontrar los errores
+        sistemáticos</strong> en nuestro pensamiento. Y una vez identifica un error — una heurística fallida, una evaluación incorrecta de probabilidades,
+        un descuento temporal excesivo — puede explotarlo una y otra vez, hasta que dominamos, o aceptamos que hay una brecha.
+      </p>
+    </div>
+
+    <!-- ── Comprendiendo Cómo Tomamos Decisiones ── -->
+    <div class="arte-intro" style="border-left-color: var(--silver); margin-bottom: 28px;">
+      <strong style="color: var(--silver);">¿Qué Nos Enseña una IA sobre Nuestras Decisiones?</strong>
+      <p style="margin-top: 12px; font-size: .95rem;">
+        Este proyecto es <strong>un espejo deformante</strong> de la racionalidad humana. Cuando el agente aprende a ganar,
+        sus decisiones revelan nuestros sesgos: 
+      </p>
+      <ul style="font-size: .95rem; margin-top: 12px; margin-left: 24px; color: var(--muted); line-height: 2;">
+        <li><strong>Aversión a pérdidas:</strong> Los humanos infravaloran ofensivas riesgosas. La IA recalcula el EV y ataca más.</li>
+        <li><strong>Pensamiento de corto plazo:</strong> Un Pokémon "débil" ahora puede ser un switch crucial más tarde. Nosotros lo vemos como perdido.</li>
+        <li><strong>Ancla mental:</strong> Si vimos que un Pokémon es "walls defensivo", nos cuesta cambiarnos a nuestro equipo de cuentas. La IA lo hace indiferentemente.</li>
+        <li><strong>Miedo social:</strong> No queremos perder de manera "extraña". La IA halló líneas de juego que "lucen mal" pero ganan.</li>
+        <li><strong>Fatiga de decisión:</strong> En turno 15 estamos cansados. La IA está idéntica a turno 1.</li>
+      </ul>
+      <p style="margin-top: 12px; font-size: .95rem;">
+        El valor no es que la IA sea "mejor". Es que la IA es <strong>predecible de un modo que los humanos no somos</strong>.
+        Sus decisiones siguen una función de recompensa clara. Y ese contraste — entre el orden de la máquina y el caos emocional humano —
+        es donde aprendemos más de nosotros mismos.
+      </p>
+    </div>
+
     <div class="dota-box">
       <div class="dota-box-header">
         <span class="dota-badge">Caso de Estudio · 2017</span>
@@ -627,12 +694,23 @@
     </div>
 
     <div class="arte-closing">
-      Ese mismo fenómeno es lo que buscamos replicar en Pokémon VGC. Una IA que no imite a los mejores jugadores,
-      sino que los <strong>supere encontrando líneas de juego que ellos no consideran</strong>.
-      Que calcule el daño exacto cuando el humano lo estima. Que nunca elija subóptimo por miedo o cansancio.
-      Que resuelva un problema que tiene millones de variables con la frialdad de quien tiene todo el tiempo del mundo.
-      El resultado no solo tiene valor académico — nos puede mostrar qué movimientos
-      <strong>ni siquiera sabíamos que existían</strong>.
+      <strong>¿Qué descubriremos?</strong>
+      <p style="margin-top: 12px; line-height: 1.85;">
+        Ese mismo fenómeno es lo que buscamos replicar en Pokémon VGC. Una IA que no imite a los mejores jugadores,
+        sino que los <strong>supere encontrando líneas de juego que ellos no consideran</strong>.
+        Que calcule el daño exacto cuando el humano lo estima. Que nunca elija subóptimo por miedo o cansancio.
+        Que resuelva un problema que tiene millones de variables con la frialdad de quien tiene todo el tiempo del mundo.
+      </p>
+      <p style="margin-top: 12px; line-height: 1.85;">
+        Pero lo más valioso no es que gane. Es que cada decisión que tome nos enseña algo sobre <strong>cómo nosotros pensamos</strong>.
+        Si el agente elije un Protect cuando todos intuimos que ataque, ¿estábamos equivocados? ¿O simplemente no tuvimos el tiempo mental para calcular?
+        Si descubre una cadena de eventos que ningún jugador profesional había visto, ¿qué nos dice eso sobre los límites de la experiencia humana?
+      </p>
+      <p style="margin-top: 12px; line-height: 1.85; font-weight: 500;">
+        Psychology, game theory, y deep learning convergen aquí. <strong>No es solo IA jugando Pokémon</strong>.
+        Es un experimento sobre la naturaleza de la racionalidad, los sesgos cognitivos, y lo que sucede cuando una máquina descubre
+        estrategias que la mente humana — brillante pero limitada — pasó por alto.
+      </p>
     </div>
   </section>
 

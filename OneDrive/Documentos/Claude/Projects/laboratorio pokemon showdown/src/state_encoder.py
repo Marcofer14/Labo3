@@ -315,6 +315,12 @@ class StateEncoder:
         parts = []
         rival_types = [p.get("types", []) for p in rival_field]
 
+        # Tamaños exactos por tipo de Pokémon (calculados en _calculate_obs_size)
+        # ally:  1+36+5+5+7+100+1+18+25 = 198
+        # rival: 1+36+5+5+7+100+25      = 179
+        OWN_POKE_SIZE   = 1 + N_TYPES*2 + 5 + 5 + N_STATUS + 4*25 + 1 + N_TYPES + N_ITEMS
+        RIVAL_POKE_SIZE = 1 + N_TYPES*2 + 5 + 5 + N_STATUS + 4*25 + N_ITEMS
+
         # Propios en campo
         for i in range(2):
             if i < len(own_field):
@@ -333,7 +339,7 @@ class StateEncoder:
                     is_ally        = True,
                 )
             else:
-                vec = np.zeros(200, dtype=np.float32)   # padding si hay menos de 2
+                vec = np.zeros(OWN_POKE_SIZE, dtype=np.float32)
             parts.append(vec)
 
         # Rivales en campo
@@ -355,7 +361,7 @@ class StateEncoder:
                     is_ally        = False,
                 )
             else:
-                vec = np.zeros(200, dtype=np.float32)
+                vec = np.zeros(RIVAL_POKE_SIZE, dtype=np.float32)
             parts.append(vec)
 
         # Condiciones del campo

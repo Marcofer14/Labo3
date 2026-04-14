@@ -1,0 +1,15 @@
+# Dockerfile.showdown — Servidor Pokemon Showdown desde el repo oficial
+FROM node:18-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /showdown
+
+# GIT_SSL_NO_VERIFY: evita error de certificado SSL en redes con proxy/firewall
+RUN GIT_SSL_NO_VERIFY=true git clone --depth 1 https://github.com/smogon/pokemon-showdown.git . \
+    && npm install --omit=dev
+
+EXPOSE 8000
+
+# --no-security: permite que los bots se conecten sin autenticación
+CMD ["node", "pokemon-showdown", "start", "--no-security"]

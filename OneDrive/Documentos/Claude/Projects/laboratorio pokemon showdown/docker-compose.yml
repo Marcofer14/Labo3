@@ -1,0 +1,73 @@
+
+# docker-compose.yml — VGC Bot completo
+#
+# Servicios:
+#   showdown  → servidor Pokemon Showdown (se compila desde el repo oficial)
+#   trainer   → entorno Python con el agente RL
+#
+# USO RÁPIDO:
+#   1. Construir todo (solo la primera vez):
+#      docker compose build
+#
+#   2. Verificar que los módulos funcionen:
+#      docker compose run trainer python train.py --dry-run
+#
+#   3. Levantar el servidor de Showdown (dejar corriendo):
+#      docker compose up showdown
+#
+#   4. En otra terminal, entrenar:
+#      docker compose run trainer python train.py
+#
+#   5. Continuar desde checkpoint:
+#      docker compose run trainer python train.py --resume checkpoints/vgc_ppo_10000.zip
+#
+#   6. Ver TensorBoard:
+#      docker compose --profile monitoring up tensorboard
+#      → http://localhost:6006
+
+services:
+
+  # ── Pokemon Showdown server ──────────────────────────────────────
+  showdown:
+    build:
+      context: .
+      dockerfile: Dockerfile.showdown
+    container_name: showdown
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+
+  # ── Trainer Python + RL ──────────────────────────────────────────
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vgc-trainer
+    depends_on:
+      showdown:
+        condition: service_healthy
+    environment:
+      - SHOWDOWN_SERVER=showdown:8000
+    volumes:
+      - .:/app
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+    command: ["python", "train.py", "--dry-run"]
+
+  # ── TensorBoard (opcional) ───────────────────────────────────────
+  tensorboard:
+    image: tensorflow/tensorflow:2.15.0
+    container_name: vgc-tensorboard
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./logs:/logs
+    command: ["tensorboard", "--logdir", "/logs", "--host", "0.0.0.0"]
+    profiles:
+      - monitoring

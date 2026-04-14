@@ -1,0 +1,210 @@
+{
+  "choice-scarf": {
+    "id": 287,
+    "name": "choice-scarf"
+  },
+  "choice-specs": {
+    "id": 460,
+    "name": "choice-specs"
+  },
+  "choice-band": {
+    "id": 220,
+    "name": "choice-band"
+  },
+  "assault-vest": {
+    "id": 641,
+    "name": "assault-vest"
+  },
+  "focus-sash": {
+    "id": 230,
+    "name": "focus-sash"
+  },
+  "life-orb": {
+    "id": 270,
+    "name": "life-orb"
+  },
+  "leftovers": {
+    "id": 234,
+    "name": "leftovers"
+  },
+  "rocky-helmet": {
+    "id": 540,
+    "name": "rocky-helmet"
+  },
+  "safety-goggles": {
+    "id": 651,
+    "name": "safety-goggles"
+  },
+  "booster-energy": {
+    "id": 2401,
+    "name": "booster-energy"
+  },
+  "mystic-water": {
+    "id": 243,
+    "name": "mystic-water"
+  },
+  "lum-berry": {
+    "id": 157,
+    "name": "lum-berry"
+  },
+  "sitrus-berry": {
+    "id": 158,
+    "name": "sitrus-berry"
+  },
+  "weakness-policy": {
+    "id": 631,
+    "name": "weakness-policy"
+  },
+  "clear-amulet": {
+    "id": 2403,
+    "name": "clear-amulet"
+  },
+  "covert-cloak": {
+    "id": 2406,
+    "name": "covert-cloak"
+  },
+  "mirror-herb": {
+    "id": 1882,
+    "name": "mirror-herb"
+  },
+  "loaded-dice": {
+    "id": 2407,
+    "name": "loaded-dice"
+  },
+  "punching-glove": {
+    "id": 2408,
+    "name": "punching-glove"
+  },
+  "throat-spray": {
+    "id": 1883,
+    "name": "throat-spray"
+  },
+  "expert-belt": {
+    "id": 268,
+    "name": "expert-belt"
+  },
+  "wide-lens": {
+    "id": 265,
+    "name": "wide-lens"
+  },
+  "zoom-lens": {
+    "id": 266,
+    "name": "zoom-lens"
+  },
+  "eviolite": {
+    "id": 538,
+    "name": "eviolite"
+  },
+  "mental-herb": {
+    "id": 219,
+    "name": "mental-herb"
+  },
+  "power-herb": {
+    "id": 269,
+    "name": "power-herb"
+  },
+  "white-herb": {
+    "id": 214,
+    "name": "white-herb"
+  },
+  "red-card": {
+    "id": 539,
+    "name": "red-card"
+  },
+  "shed-shell": {
+    "id": 236,
+    "name": "shed-shell"
+  },
+  "air-balloon": {
+    "id": 541,
+    "name": "air-balloon"
+  },
+  "charcoal": {
+    "id": 244,
+    "name": "charcoal"
+  },
+  "miracle-seed": {
+    "id": 239,
+    "name": "miracle-seed"
+  },
+  "magnet": {
+    "id": 242,
+    "name": "magnet"
+  },
+  "never-melt-ice": {
+    "id": 246,
+    "name": "never-melt-ice"
+  },
+  "twisted-spoon": {
+    "id": 248,
+    "name": "twisted-spoon"
+  },
+  "black-belt": {
+    "id": 241,
+    "name": "black-belt"
+  },
+  "poison-barb": {
+    "id": 245,
+    "name": "poison-barb"
+  },
+  "soft-sand": {
+    "id": 237,
+    "name": "soft-sand"
+  },
+  "sharp-beak": {
+    "id": 247,
+    "name": "sharp-beak"
+  },
+  "silver-powder": {
+    "id": 240,
+    "name": "silver-powder"
+  },
+  "hard-stone": {
+    "id": 238,
+    "name": "hard-stone"
+  },
+  "spell-tag": {
+    "id": 249,
+    "name": "spell-tag"
+  },
+  "dragon-fang": {
+    "id": 250,
+    "name": "dragon-fang"
+  },
+  "black-glasses": {
+    "id": 251,
+    "name": "black-glasses"
+  },
+  "metal-coat": {
+    "id": 210,
+    "name": "metal-coat"
+  },
+  "silk-scarf": {
+    "id": 252,
+    "name": "silk-scarf"
+  },
+  "fairy-feather": {
+    "id": 1882,
+    "name": "fairy-feather"
+  },
+  "terrain-extender": {
+    "id": 1879,
+    "name": "terrain-extender"
+  },
+  "icy-rock": {
+    "id": 225,
+    "name": "icy-rock"
+  },
+  "damp-rock": {
+    "id": 224,
+    "name": "damp-rock"
+  },
+  "heat-rock": {
+    "id": 222,
+    "name": "heat-rock"
+  },
+  "smooth-rock": {
+    "id": 223,
+    "name": "smooth-rock"
+  }
+}

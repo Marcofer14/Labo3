@@ -396,17 +396,77 @@ def get_nature_multiplier(nature: str, stat_name: str) -> float:
     """Exporta el multiplicador de naturaleza para uso externo."""
     return _nature_multiplier(nature, stat_name)
 
+# ── Overrides para formas alternativas no incluidas en el dataset ──
+# PokeAPI solo descargó IDs 1-1025 (formas base). Estos overrides
+# corrigen las formas alternativas usadas en VGC competitivo.
+
+FORM_OVERRIDES: dict[str, dict] = {
+    # Calyrex-Shadow Rider (Psychic/Ghost, SpA=145, Spe=150)
+    "calyrex-shadow": {
+        "id": 898, "name": "calyrex-shadow",
+        "types": ["psychic", "ghost"],
+        "stats": {
+            "hp": 100, "attack": 85, "defense": 80,
+            "special-attack": 145, "special-defense": 80, "speed": 150,
+        },
+        "abilities": ["as-one"],
+    },
+    # Calyrex-Ice Rider (Psychic/Ice, Atk=165, Spe=50)
+    "calyrex-ice": {
+        "id": 898, "name": "calyrex-ice",
+        "types": ["psychic", "ice"],
+        "stats": {
+            "hp": 100, "attack": 165, "defense": 150,
+            "special-attack": 85, "special-defense": 130, "speed": 50,
+        },
+        "abilities": ["as-one"],
+    },
+    # Urshifu-Rapid-Strike (Fighting/Water)
+    "urshifu-rapid-strike": {
+        "id": 892, "name": "urshifu-rapid-strike",
+        "types": ["fighting", "water"],
+        "stats": {
+            "hp": 100, "attack": 130, "defense": 100,
+            "special-attack": 63, "special-defense": 60, "speed": 97,
+        },
+        "abilities": ["unseen-fist"],
+    },
+    # Kyogre (base está bien pero añadimos por completitud)
+    # Necrozma-Dawn-Wings, Necrozma-Dusk-Mane, etc. por si acaso
+    "incineroar": None,   # sentinel — usar la del dataset
+}
+
+
 # ── Búsquedas ─────────────────────────────────────────────────────
 
 def _find_pokemon_by_name(name: str, pokemon_data: dict) -> Optional[dict]:
     """
     Busca un Pokémon en el dataset por nombre.
-    Los datos están keyed por ID numérico, así que hay que iterar.
+    Primero revisa FORM_OVERRIDES para formas alternativas que no
+    están en el dataset de PokeAPI (IDs 1-1025).
     """
     name = name.lower()
+
+    # 1. Overrides explícitos para formas alternativas
+    if name in FORM_OVERRIDES:
+        override = FORM_OVERRIDES[name]
+        if override is not None:   # None = sentinel "usar dataset normal"
+            return override
+
+    # 2. Búsqueda normal en el dataset
     for poke in pokemon_data.values():
         if poke["name"] == name:
             return poke
+
+    # 3. Fallback: intentar con el nombre base (sin el sufijo de forma)
+    #    ej: "kyogre-primal" → intentar "kyogre"
+    base_name = name.split("-")[0]
+    if base_name != name:
+        for poke in pokemon_data.values():
+            if poke["name"] == base_name:
+                # Retornar una copia con el nombre correcto
+                return dict(poke, name=name)
+
     return None
 
 def get_pokemon(name: str, pokemon_data: dict) -> Optional[dict]:
