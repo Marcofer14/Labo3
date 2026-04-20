@@ -33,7 +33,7 @@ from pathlib import Path
 
 from poke_env import RandomPlayer, MaxBasePowerPlayer, cross_evaluate
 from poke_env.ps_client import ServerConfiguration
-
+from src.format_resolver import resolve_format
 
 def build_server_config(host: str) -> ServerConfiguration:
     """Construye el ServerConfiguration con la URL correcta de WebSocket."""
@@ -72,8 +72,8 @@ def main():
         help="Número de batallas (default: 3)"
     )
     parser.add_argument(
-        "--format", type=str, default="gen9vgc2025regg",
-        help="Formato de batalla (default: gen9vgc2025regg)"
+        "--format", type=str, default=None,
+        help="Formato de batalla. Si no se pasa, usa VGC_FORMAT o el default automático."
     )
     parser.add_argument(
         "--p1", type=str, default="greedy", choices=["random", "greedy"],
@@ -89,7 +89,8 @@ def main():
         help="Host:puerto del servidor Showdown (default: localhost:8000)"
     )
     args = parser.parse_args()
-
+    args.format = resolve_format(args.format) #BUSCA EL FORMATO MAS ACTUAL
+    
     # Leer equipo
     team_path = Path(__file__).resolve().parent / "team.txt"
     with open(team_path, encoding="utf-8") as f:

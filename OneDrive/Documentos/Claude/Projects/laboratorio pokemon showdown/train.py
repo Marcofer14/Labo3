@@ -40,7 +40,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
-
+from src.format_resolver import resolve_format
 
 # ── Verificación de dependencias ──────────────────────────────────
 
@@ -225,6 +225,7 @@ def train(
     resume_path: Optional[str] = None,
     opponent_type: str = "random",
     server: Optional[str] = None,
+    battle_format: Optional[str] = None,
 ):
     """
     Lanza el entrenamiento del agente con PPO.
@@ -263,7 +264,7 @@ def train(
     # Resolver host del servidor: arg > env var > default
     server_host = server or os.environ.get("SHOWDOWN_SERVER", "localhost:8000")
 
-    VGC_FORMAT = "gen9vgc2025regg"
+    VGC_FORMAT = resolve_format(battle_format)
 
     print("═" * 60)
     print("  VGC Bot — Entrenamiento RL (PPO)")
@@ -371,6 +372,10 @@ if __name__ == "__main__":
         help="Verificar módulos sin conectar a Showdown"
     )
     parser.add_argument(
+        "--format", type=str, default=None,
+        help="Formato de batalla. Si no se pasa, usa VGC_FORMAT o el default automático."
+    )
+    parser.add_argument(
         "--resume", type=str, default=None,
         help="Ruta a checkpoint .zip para continuar entrenamiento"
     )
@@ -388,4 +393,9 @@ if __name__ == "__main__":
     if args.dry_run:
         dry_run()
     else:
-        train(resume_path=args.resume, opponent_type=args.opponent, server=args.server)
+        train(
+            resume_path=args.resume,
+            opponent_type=args.opponent,
+            server=args.server,
+            battle_format=args.format,
+        )
