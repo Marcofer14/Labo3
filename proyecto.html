@@ -109,6 +109,17 @@
       font-size: .97rem; font-weight: 400; color: var(--muted);
       max-width: 540px; margin-bottom: 32px; line-height: 1.8;
     }
+    .hero-tutor {
+      font-size: .83rem; color: var(--muted); margin-bottom: 28px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .hero-tutor .tutor-label {
+      font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--blue);
+      background: var(--blue-soft); border: 1px solid var(--blue-light);
+      padding: 3px 10px; border-radius: 99px;
+    }
+    .hero-tutor strong { color: var(--text); font-weight: 600; }
     .tags { display: flex; flex-wrap: wrap; gap: 8px; }
     .tag {
       padding: 5px 14px; border-radius: 99px;
@@ -429,9 +440,9 @@
     <div class="hero-text">
       <div class="hero-eyebrow">Proyecto Final &nbsp;·&nbsp; Reinforcement Learning</div>
       <h1>¿Puede una IA vencer<br/>al humano en<br/><span class="accent">Pokémon</span><span class="accent-lav"> competitivo?</span></h1>
-      <p class="hero-sub">
-        Agente de aprendizaje por refuerzo entrenado para competir en <strong>VGC Regulation I</strong> —
-        el formato más complejo del Pokémon competitivo oficial. Sin reglas explícitas. Solo experiencia.
+      <p class="hero-tutor">
+        <span class="tutor-label">Tutor</span>
+        <strong>Julio Paredes</strong>
       </p>
       <div class="tags">
         <span class="tag tag-blue">Reinforcement Learning</span>
@@ -449,10 +460,20 @@
 
 <div class="container">
 
-  <!-- ══════════════ 1. PRESENTACIÓN ══════════════ -->
+  <!-- ══════════════ 1. INTRODUCCIÓN ══════════════ -->
   <section>
-    <div class="section-label">Equipo</div>
-    <div class="section-title">Presentación</div>
+    <div class="section-label">Introducción</div>
+    <div class="section-title">Presentación del Proyecto</div>
+    <div class="abstract-box" style="margin-bottom: 40px;">
+      Construir un agente de inteligencia artificial capaz de competir en <strong>Pokémon VGC Regulation I</strong>
+      utilizando <strong>aprendizaje por refuerzo (PPO)</strong>, partiendo de un equipo fijo de 6 Pokémon y
+      entrenando exclusivamente a través de experiencia acumulada en batallas simuladas.
+      El agente debe aprender a manejar información incompleta, alta varianza táctica y múltiples objetivos simultáneos
+      — sin que se le programen reglas estratégicas de forma explícita.
+      El desempeño se medirá en la <strong>ladder competitiva real de Pokémon Showdown</strong>,
+      comparando el ELO alcanzado contra la distribución de jugadores humanos.
+    </div>
+    <div class="section-label" style="margin-bottom: 20px;">Equipo</div>
     <div class="team-grid">
 
       <div class="team-card">
@@ -485,25 +506,20 @@
     </div>
   </section>
 
-  <!-- ══════════════ 2. OBJETIVO ══════════════ -->
-  <section>
-    <div class="section-label">Propósito del Proyecto</div>
-    <div class="section-title">Objetivo</div>
-    <div class="abstract-box">
-      Construir un agente de inteligencia artificial capaz de competir en <strong>Pokémon VGC Regulation I</strong>
-      utilizando <strong>aprendizaje por refuerzo (PPO)</strong>, partiendo de un equipo fijo de 6 Pokémon y
-      entrenando exclusivamente a través de experiencia acumulada en batallas simuladas.
-      El agente debe aprender a manejar información incompleta, alta varianza táctica y múltiples objetivos simultáneos
-      — sin que se le programen reglas estratégicas de forma explícita.
-      El desempeño se medirá en la <strong>ladder competitiva real de Pokémon Showdown</strong>,
-      comparando el ELO alcanzado contra la distribución de jugadores humanos.
-    </div>
-  </section>
 
   <!-- ══════════════ 3. HIPÓTESIS ══════════════ -->
   <section>
     <div class="section-label">Pregunta Central</div>
     <div class="section-title">Hipótesis</div>
+
+    <div class="abstract-box" style="border-left-color: var(--lavender); margin-bottom: 32px;">
+      <strong style="color: var(--lavender);">Hipótesis Central —</strong>
+      Un agente de aprendizaje por refuerzo profundo (PPO) puede superar la mediana de jugadores humanos
+      en la ladder competitiva de Pokémon VGC Regulation I, explotando de forma sistemática las limitaciones
+      cognitivas inherentes al jugador humano — memoria de trabajo limitada (Miller, 1956), aversión a pérdidas
+      (Kahneman &amp; Tversky, 1979) y fatiga de decisión (Baumeister et al., 1998) — bajo condiciones de
+      información incompleta y alta varianza estocástica.
+    </div>
 
     <div class="hypothesis-grid">
 
@@ -556,31 +572,31 @@
       <div class="bar-row">
         <span class="bar-label">Éxito rotundo</span>
         <div class="bar-track">
-          <div class="bar-fill" style="width:1%; background: linear-gradient(90deg, #C8BEDD, #9080BC);"></div>
+          <div class="bar-fill" style="width:30%; background: linear-gradient(90deg, #C8BEDD, #9080BC);"></div>
         </div>
-        <span class="bar-tag lav">Top 1% de la ladder</span>
+        <span class="bar-tag lav">Superar el ELO máximo de Marco Fernandez</span>
       </div>
       <div class="bar-row">
         <span class="bar-label">Éxito</span>
         <div class="bar-track">
-          <div class="bar-fill" style="width:10%; background: linear-gradient(90deg, var(--blue-light), var(--blue));"></div>
+          <div class="bar-fill" style="width:50%; background: linear-gradient(90deg, var(--blue-light), var(--blue));"></div>
         </div>
-        <span class="bar-tag blue">Top 10% de la ladder</span>
+        <span class="bar-tag blue">Superar la mediana de jugadores en la ladder</span>
       </div>
       <div class="bar-row">
-        <span class="bar-label">Resto jugadores</span>
+        <span class="bar-label">Línea base</span>
         <div class="bar-track">
-          <div class="bar-fill" style="width:90%; background: var(--border);"></div>
+          <div class="bar-fill" style="width:100%; background: var(--border);"></div>
         </div>
-        <span class="bar-tag" style="color:var(--muted); border:1px solid var(--border);">90% restante</span>
+        <span class="bar-tag" style="color:var(--muted); border:1px solid var(--border);">Por debajo de la mediana</span>
       </div>
     </div>
   </section>
 
-  <!-- ══════════════ 4. AMOR AL ARTE ══════════════ -->
+  <!-- ══════════════ 4+5. FUNDAMENTOS DEL PROYECTO ══════════════ -->
   <section>
-    <div class="section-label">Motivación</div>
-    <div class="section-title">Amor al Arte</div>
+    <div class="section-label">Motivación y Teoría</div>
+    <div class="section-title">Fundamentos del Proyecto</div>
 
     <div class="arte-intro">
       Este proyecto no es solo un trabajo práctico. Es una oportunidad para responder una pregunta que nos fascina:
@@ -605,27 +621,6 @@
         Puede modelar el <strong>espacio de decisiones humanas</strong> no para replicarlas, sino para <strong>encontrar los errores
         sistemáticos</strong> en nuestro pensamiento. Y una vez identifica un error — una heurística fallida, una evaluación incorrecta de probabilidades,
         un descuento temporal excesivo — puede explotarlo una y otra vez, hasta que dominamos, o aceptamos que hay una brecha.
-      </p>
-    </div>
-
-    <!-- ── Comprendiendo Cómo Tomamos Decisiones ── -->
-    <div class="arte-intro" style="border-left-color: var(--silver); margin-bottom: 28px;">
-      <strong style="color: var(--silver);">¿Qué Nos Enseña una IA sobre Nuestras Decisiones?</strong>
-      <p style="margin-top: 12px; font-size: .95rem;">
-        Este proyecto es <strong>un espejo deformante</strong> de la racionalidad humana. Cuando el agente aprende a ganar,
-        sus decisiones revelan nuestros sesgos: 
-      </p>
-      <ul style="font-size: .95rem; margin-top: 12px; margin-left: 24px; color: var(--muted); line-height: 2;">
-        <li><strong>Aversión a pérdidas:</strong> Los humanos infravaloran ofensivas riesgosas. La IA recalcula el EV y ataca más.</li>
-        <li><strong>Pensamiento de corto plazo:</strong> Un Pokémon "débil" ahora puede ser un switch crucial más tarde. Nosotros lo vemos como perdido.</li>
-        <li><strong>Ancla mental:</strong> Si vimos que un Pokémon es "walls defensivo", nos cuesta cambiarnos a nuestro equipo de cuentas. La IA lo hace indiferentemente.</li>
-        <li><strong>Miedo social:</strong> No queremos perder de manera "extraña". La IA halló líneas de juego que "lucen mal" pero ganan.</li>
-        <li><strong>Fatiga de decisión:</strong> En turno 15 estamos cansados. La IA está idéntica a turno 1.</li>
-      </ul>
-      <p style="margin-top: 12px; font-size: .95rem;">
-        El valor no es que la IA sea "mejor". Es que la IA es <strong>predecible de un modo que los humanos no somos</strong>.
-        Sus decisiones siguen una función de recompensa clara. Y ese contraste — entre el orden de la máquina y el caos emocional humano —
-        es donde aprendemos más de nosotros mismos.
       </p>
     </div>
 
@@ -712,12 +707,9 @@
         estrategias que la mente humana — brillante pero limitada — pasó por alto.
       </p>
     </div>
-  </section>
 
-  <!-- ══════════════ 5. MARCO CONCEPTUAL ══════════════ -->
-  <section>
-    <div class="section-label">Fundamentos Teóricos</div>
-    <div class="section-title">Marco Conceptual</div>
+    <div class="section-label" style="margin-top: 56px; margin-bottom: 8px;">Marco Conceptual</div>
+    <div class="section-title" style="font-size: 1.4rem; margin-bottom: 28px;">Conceptos Clave</div>
     <div class="marco-grid">
 
       <div class="marco-card">
@@ -752,16 +744,6 @@
 
       <div class="marco-card">
         <div class="mc-num">04</div>
-        <h3>Terastalización</h3>
-        <p>
-          Mecánica de la Generación 9: cada Pokémon puede cambiar su tipo una vez por batalla.
-          Añade una dimensión entera de información oculta (el Tera type del rival es desconocido)
-          y crea líneas de juego que dependen de <strong>cuándo y si usar el Tera</strong>.
-        </p>
-      </div>
-
-      <div class="marco-card">
-        <div class="mc-num">05</div>
         <h3>Aprendizaje por Refuerzo (RL)</h3>
         <p>
           Un agente aprende una <strong>política π(acción | estado)</strong> que maximiza la recompensa
@@ -772,7 +754,7 @@
       </div>
 
       <div class="marco-card">
-        <div class="mc-num">06</div>
+        <div class="mc-num">05</div>
         <h3>Imitación + RL (IL → RL)</h3>
         <p>
           Antes del RL puro, el agente se <strong>preetrenea supervisado</strong> con replays de jugadores
@@ -782,7 +764,7 @@
       </div>
 
       <div class="marco-card">
-        <div class="mc-num">07</div>
+        <div class="mc-num">06</div>
         <h3>Representación del Estado</h3>
         <p>
           El estado del juego se codifica en un <strong>vector de ~380 valores normalizados</strong> (0–1):
@@ -792,7 +774,7 @@
       </div>
 
       <div class="marco-card">
-        <div class="mc-num">08</div>
+        <div class="mc-num">07</div>
         <h3>Función de Recompensa</h3>
         <p>
           El agente recibe señales por: <strong>daño infligido (+)</strong>, daño recibido (−),
@@ -803,7 +785,7 @@
       </div>
 
       <div class="marco-card">
-        <div class="mc-num">09</div>
+        <div class="mc-num">08</div>
         <h3>ELO como Métrica de Desempeño</h3>
         <p>
           El sistema <strong>ELO de Pokémon Showdown</strong> es un ranking relativo calibrado contra
@@ -885,10 +867,10 @@
     </div>
   </section>
 
-  <!-- ══════════════ 7. PASOS DEL PROYECTO ══════════════ -->
+  <!-- ══════════════ 7. METODOLOGÍA ══════════════ -->
   <section>
-    <div class="section-label">Pipeline</div>
-    <div class="section-title">Pasos del Proyecto</div>
+    <div class="section-label">Metodología</div>
+    <div class="section-title">Metodología</div>
     <div class="steps">
 
       <div class="step">
@@ -1027,6 +1009,71 @@
       </div>
     </div>
 
+  </section>
+
+
+  <!-- ══════════════ REFERENCIAS ══════════════ -->
+  <section>
+    <div class="section-label">Bibliografía</div>
+    <div class="section-title">Referencias</div>
+    <div class="card" style="border-left: 4px solid var(--blue);">
+      <ol style="padding-left: 20px; font-size: .84rem; color: var(--muted); line-height: 2.1; list-style-type: decimal;">
+        <li>
+          Baumeister, R. F., Bratslavsky, E., Muraven, M., &amp; Tice, D. M. (1998). Ego depletion: Is the self a limited resource?
+          <em>Journal of Personality and Social Psychology</em>, <em>74</em>(5), 1252–1265.
+          <a href="https://doi.org/10.1037/0022-3514.74.5.1252" target="_blank" style="color: var(--blue);">https://doi.org/10.1037/0022-3514.74.5.1252</a>
+        </li>
+        <li>
+          Kahneman, D. (2011). <em>Thinking, fast and slow</em>. Farrar, Straus and Giroux.
+        </li>
+        <li>
+          Kahneman, D., &amp; Tversky, A. (1979). Prospect theory: An analysis of decision under risk.
+          <em>Econometrica</em>, <em>47</em>(2), 263–291.
+          <a href="https://doi.org/10.2307/1914185" target="_blank" style="color: var(--blue);">https://doi.org/10.2307/1914185</a>
+        </li>
+        <li>
+          Miller, G. A. (1956). The magical number seven, plus or minus two: Some limits on our capacity for processing information.
+          <em>Psychological Review</em>, <em>63</em>(2), 81–97.
+          <a href="https://doi.org/10.1037/h0043158" target="_blank" style="color: var(--blue);">https://doi.org/10.1037/h0043158</a>
+        </li>
+        <li>
+          Mnih, V., Kavukcuoglu, K., Silver, D., Rusu, A. A., Veness, J., Bellemare, M. G., Graves, A., Riedmiller, M., Fidjeland, A. K., Ostrovski, G., Petersen, S., Beattie, C., Sadik, A., Antonoglou, I., King, H., Kumaran, D., Wierstra, D., Legg, S., &amp; Hassabis, D. (2015). Human-level control through deep reinforcement learning.
+          <em>Nature</em>, <em>518</em>(7540), 529–533.
+          <a href="https://doi.org/10.1038/nature14236" target="_blank" style="color: var(--blue);">https://doi.org/10.1038/nature14236</a>
+        </li>
+        <li>
+          Moravčík, M., Schmid, M., Burch, N., Lisý, V., Morrill, D., Bard, N., Davis, T., Waugh, K., Johanson, M., &amp; Bowling, M. (2017). DeepStack: Expert-level artificial intelligence in heads-up no-limit poker.
+          <em>Science</em>, <em>356</em>(6337), 508–513.
+          <a href="https://doi.org/10.1126/science.aam6960" target="_blank" style="color: var(--blue);">https://doi.org/10.1126/science.aam6960</a>
+        </li>
+        <li>
+          OpenAI. (2019). <em>OpenAI Five defeats Dota 2 world champions</em>.
+          <a href="https://openai.com/blog/openai-five-defeats-dota-2-world-champions/" target="_blank" style="color: var(--blue);">https://openai.com/blog/openai-five-defeats-dota-2-world-champions/</a>
+        </li>
+        <li>
+          Sahović, H. (2023). <em>poke-env: A Python interface for Pokémon Showdown battles</em> (v0.8) [Software]. GitHub.
+          <a href="https://github.com/hsahovic/poke-env" target="_blank" style="color: var(--blue);">https://github.com/hsahovic/poke-env</a>
+        </li>
+        <li>
+          Schulman, J., Wolski, F., Dhariwal, P., Radford, A., &amp; Klimov, O. (2017). Proximal policy optimization algorithms.
+          <em>arXiv preprint arXiv:1707.06347</em>.
+          <a href="https://arxiv.org/abs/1707.06347" target="_blank" style="color: var(--blue);">https://arxiv.org/abs/1707.06347</a>
+        </li>
+        <li>
+          Silver, D., Huang, A., Maddison, C. J., Guez, A., Sifre, L., Van Den Driessche, G., Schrittwieser, J., Antonoglou, I., Panneershelvam, V., Lanctot, M., Dieleman, S., Grewe, D., Nham, J., Kalchbrenner, N., Sutskever, I., Lillicrap, T., Leach, M., Kavukcuoglu, K., Graepel, T., &amp; Hassabis, D. (2016). Mastering the game of Go with deep neural networks and tree search.
+          <em>Nature</em>, <em>529</em>(7587), 484–489.
+          <a href="https://doi.org/10.1038/nature16961" target="_blank" style="color: var(--blue);">https://doi.org/10.1038/nature16961</a>
+        </li>
+        <li>
+          Sutton, R. S., &amp; Barto, A. G. (2018). <em>Reinforcement learning: An introduction</em> (2nd ed.). MIT Press.
+        </li>
+        <li>
+          Vinyals, O., Babuschkin, I., Czarnecki, W. M., Mathieu, M., Dudzik, A., Chung, J., Marris, D. H., Quan, J., Oh, J., Lampinen, A., Nair, A., Valko, M., Kavukcuoglu, K., Hassabis, D., &amp; Silver, D. (2019). Grandmaster level in StarCraft II using multi-agent reinforcement learning.
+          <em>Nature</em>, <em>575</em>(7782), 350–354.
+          <a href="https://doi.org/10.1038/s41586-019-1724-z" target="_blank" style="color: var(--blue);">https://doi.org/10.1038/s41586-019-1724-z</a>
+        </li>
+      </ol>
+    </div>
   </section>
 
 </div><!-- /container -->
