@@ -209,6 +209,7 @@ data/replays/
 |-- raw/<format>/<battle_id>.json
 |-- parsed/<format>/<battle_id>.json
 |-- datasets/<format>_decisions.jsonl
+|-- datasets/<format>_double_decisions.jsonl
 `-- index.jsonl
 ```
 
@@ -217,6 +218,7 @@ Politica de almacenamiento:
 - `raw/` guarda el JSON original de Pokemon Showdown sin modificar.
 - `parsed/` guarda una version normalizada por turnos, eventos, jugadores, acciones y resultado.
 - `datasets/*_decisions.jsonl` guarda muestras de decision derivadas del parsed.
+- `datasets/*_double_decisions.jsonl` agrupa acciones por turno y lado para VGC dobles.
 - `index.jsonl` mantiene un indice de replays descargados.
 - El codigo no borra ni sobreescribe replays raw ya descargados.
 - `data/replays/` esta ignorado por Git porque puede crecer mucho.
@@ -231,6 +233,12 @@ Para VGC, usar el formato vigente:
 
 ```powershell
 docker compose run --rm trainer python scripts/ingest_replays.py --format gen9vgc2026regi --include-default-bots --limit 25 --pages 1
+```
+
+Reconstruir datasets derivados desde replays raw ya descargados:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9vgc2026regi --rebuild-parsed
 ```
 
 ### Descargar replays de un usuario especifico
