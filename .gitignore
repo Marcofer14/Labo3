@@ -24,7 +24,7 @@ checkpoints/
 logs/
 
 # Replays descargados y datasets derivados (pueden crecer mucho)
-data/replays/
+data/
 
 # Docker
 .dockerignore
