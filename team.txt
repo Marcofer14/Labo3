@@ -1,4 +1,4 @@
-Tyranitar-Mega @ Tyranitarite
+Tyranitar @ Clear Amulet
 Ability: Sand Stream
 Adamant Nature
 Level: 50
@@ -56,4 +56,4 @@ EVs: 20 HP / 32 Atk / 2 Def / 12 SpD
 - Bullet Punch
 - Bug Bite
 - U-turn
-- Superpower
+- Close Combat

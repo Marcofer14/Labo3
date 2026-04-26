@@ -1,83 +1,68 @@
-# Laboratorio Pokémon Showdown — VGC Bot
+# Laboratorio Pokemon Showdown - VGC Bot
 
-Proyecto experimental para entrenar y evaluar agentes que juegan batallas dobles de Pokémon en un servidor local de Pokémon Showdown.
+Proyecto experimental para conectar bots a Pokemon Showdown, probar politicas simples y avanzar hacia agentes de aprendizaje por refuerzo.
 
-El repositorio incluye:
+El flujo actual separa dos responsabilidades:
 
-- un equipo fijo en `team.txt`;
-- datos base de PokeAPI ya descargados en `data/raw/`;
-- cálculo de daño y utilidades de stats/tipos;
-- codificación de estados para aprendizaje por refuerzo;
-- un entorno `VGCEnv` basado en `poke-env`;
-- scripts de prueba para daño, encoding y batallas entre bots;
-- entrenamiento con PPO usando `stable-baselines3`;
-- configuración Docker para levantar Pokémon Showdown y correr el trainer.
+- `login.py`: crea bots autenticados y configura el servidor.
+- `play.py`: decide que politica usa cada bot, ejecuta partidas y cierra las sesiones.
 
----
+`battle.py` se mantiene como smoke test legado, pero el flujo principal nuevo vive en `play.py`.
 
-## Estado actual del proyecto
+## Estado Actual
 
-El proyecto ya permite:
+El proyecto actualmente permite:
 
-1. verificar módulos sin conectarse a Showdown;
-2. levantar un servidor local de Pokémon Showdown con Docker;
-3. correr batallas entre bots `greedy` y `random`;
-4. iniciar entrenamiento PPO contra un oponente `random` o `greedy`;
-5. guardar checkpoints y logs de TensorBoard.
+- levantar un servidor local de Pokemon Showdown con Docker;
+- conectar el bot principal con identidad fija;
+- conectar un segundo bot con otra cuenta;
+- jugar partidas locales entre dos bots por challenge;
+- jugar una partida real en ladder oficial en formato random battle;
+- elegir politica `random` o `greedy`;
+- imprimir turnos, estado resumido y decisiones del bot;
+- detectar el final de la partida desde el codigo y cerrar la sesion;
+- limpiar batallas abiertas viejas al arrancar para evitar arrastrar partidas anteriores.
 
-Todavía no están implementados completamente:
+Las cuentas configuradas por defecto son:
 
-- descarga selectiva con `--only pokemon`, `--only moves`, etc.;
-- imitation learning desde replays;
-- ladder real contra humanos;
-- team building automático.
+| Rol | Usuario | Password |
+|---|---|---|
+| Bot principal | `Laboratorio3IA` | `123456789` |
+| Bot rival | `Laboratorio3IA-B` | `123456789` |
 
----
+Tambien se pueden sobrescribir con variables de entorno:
 
-## Uso rápido en Windows 11 con Docker Desktop
+- `SHOWDOWN_USERNAME`
+- `SHOWDOWN_PASSWORD`
+- `SHOWDOWN_OPPONENT_USERNAME`
+- `SHOWDOWN_OPPONENT_PASSWORD`
 
-Apagar contenedores anteriores, si existen:
+## Requisitos
+
+- Docker Desktop
+- Docker Compose
+
+En Windows, los comandos pueden funcionar como `docker compose ...` o como `docker-compose ...` segun la instalacion. Este README usa `docker compose`, que es el formato recomendado por Docker Compose v2.
+
+Si en tu maquina `docker compose` falla pero `docker-compose` funciona, usa la segunda forma.
+
+## Crear Los Contenedores
+
+Desde la raiz del repo:
 
 ```powershell
 docker compose down
-```
-
-Construir las imágenes:
-
-```powershell
 docker compose build
-```
-
-Levantar el servidor local de Pokémon Showdown:
-
-```powershell
 docker compose up -d showdown
-```
-
-Verificar que los contenedores estén corriendo:
-
-```powershell
 docker compose ps
 ```
 
-Verificar el proyecto sin conectar a una batalla real:
+El servicio `showdown` debe quedar `healthy`.
+
+Para ver logs del servidor local:
 
 ```powershell
-docker compose run --rm trainer python train.py --dry-run
-```
-
-Correr una prueba de batallas entre bots:
-
-```powershell
-docker compose run --rm trainer python battle.py --n 3 --p1 greedy --p2 random --server showdown:8000
-```
-
-Resultado esperado aproximado:
-
-```text
-RESULTADOS
-GREEDY    victorias: 3 / 3
-RANDOM    victorias: 0 / 3
+docker compose logs -f showdown
 ```
 
 Para apagar todo:
@@ -86,89 +71,172 @@ Para apagar todo:
 docker compose down
 ```
 
----
+## Flujo Principal: `play.py`
 
-## Comandos útiles con Docker
+`play.py` tiene dos modos:
 
-### Construir todo
+| Modo | Uso |
+|---|---|
+| `challenge` | Dos bots controlados por el script juegan entre si. |
+| `ladder` | El bot principal busca una partida contra un rival real/random en ladder. |
+
+Politicas disponibles:
+
+| Politica | Descripcion |
+|---|---|
+| `random` | Elige acciones aleatorias. |
+| `greedy` | Usa `MaxBasePowerPlayer`, priorizando movimientos de mayor potencia. |
+
+Opciones importantes:
+
+| Opcion | Descripcion |
+|---|---|
+| `--n` | Cantidad de partidas. |
+| `--mode` | `challenge` o `ladder`. |
+| `--p1` | Politica del bot principal. |
+| `--p2` | Politica del segundo bot en modo `challenge`. |
+| `--server` | `official` para Showdown real, o `showdown:8000` para el servidor local Docker. |
+| `--format` | Formato de Showdown. |
+| `--battle-timeout` | Tiempo maximo para esperar las partidas. Si se cumple, abandona batallas abiertas y cierra. |
+| `--login-timeout` | Tiempo maximo para esperar login inicial. |
+
+Ver ayuda:
 
 ```powershell
-docker compose build
+docker compose run --rm trainer python play.py --help
 ```
 
-### Levantar Showdown en segundo plano
+## Partida Local Entre Dos Bots
+
+Primero levantar el servidor local:
 
 ```powershell
 docker compose up -d showdown
 ```
 
-### Ver logs del servidor Showdown
+### Random battle local
+
+Este formato no usa `team.txt`; Showdown genera los equipos:
 
 ```powershell
-docker compose logs -f showdown
+docker compose run --rm trainer python -u play.py --mode challenge --n 1 --p1 greedy --p2 random --server showdown:8000 --format gen9randombattle --battle-timeout 120 --login-timeout 30
 ```
 
-### Ver contenedores activos
+Salida esperada:
+
+- conecta `Laboratorio3IA`;
+- conecta `Laboratorio3IA-B`;
+- limpia batallas abiertas viejas;
+- inicia una partida local;
+- imprime turnos y decisiones;
+- detecta victoria/derrota;
+- cierra la sesion y termina.
+
+### VGC local con `team.txt`
+
+El formato VGC probado como valido es:
+
+```text
+gen9vgc2026regi
+```
+
+Comando:
 
 ```powershell
-docker compose ps
+docker compose run --rm trainer python -u play.py --mode challenge --n 1 --p1 greedy --p2 random --server showdown:8000 --format gen9vgc2026regi --battle-timeout 120 --login-timeout 30
 ```
 
-### Dry-run del trainer
+Este modo usa el equipo de `team.txt`.
+
+## Partida Real En Showdown Oficial
+
+Para jugar contra una persona random en ladder oficial, usar `--mode ladder` y `--server official`.
+
+El modo mas simple es `gen9randombattle`, porque no requiere `team.txt`:
 
 ```powershell
-docker compose run --rm trainer python train.py --dry-run
+docker compose run --rm trainer python -u play.py --mode ladder --n 1 --p1 random --server official --format gen9randombattle --battle-timeout 600 --login-timeout 30
 ```
 
-### Batalla greedy vs random
+Este comando:
+
+- conecta `Laboratorio3IA` al servidor oficial;
+- limpia batallas abiertas viejas;
+- busca una partida en ladder;
+- imprime turnos y decisiones;
+- detecta el final;
+- muestra resultado;
+- cierra el proceso.
+
+Ejemplo de salida final real:
+
+```text
+Final: battle-gen9randombattle-2594202794 -> DERROTA en 16 turnos.
+
+RESULTADOS
+Principal RANDOM   victorias: 0 / 1
+
+Perdio el bot principal (RANDOM).
+```
+
+### Nota Sobre Challenges En El Servidor Oficial
+
+El challenge directo entre `Laboratorio3IA` y `Laboratorio3IA-B` puede ser bloqueado por Pokemon Showdown oficial con un mensaje anti-spam, especialmente si la red o las cuentas son nuevas.
+
+Mensaje observado:
+
+```text
+Due to spam from your internet provider, you can't challenge others right now.
+Logging into an account you've used a lot in the past will allow you to challenge.
+```
+
+Por eso, para probar en servidor real, el flujo recomendado por ahora es ladder:
 
 ```powershell
-docker compose run --rm trainer python battle.py --n 3 --p1 greedy --p2 random --server showdown:8000
+docker compose run --rm trainer python -u play.py --mode ladder --n 1 --p1 random --server official --format gen9randombattle --battle-timeout 600 --login-timeout 30
 ```
 
-### Batalla random vs random
+Para self-play, entrenamiento o muchas pruebas repetidas, usar el servidor local Docker.
 
-```powershell
-docker compose run --rm trainer python battle.py --n 3 --p1 random --p2 random --server showdown:8000
-```
+## Smoke Test Legado: `battle.py`
 
-### Forzar un formato manualmente
+`battle.py` sigue existiendo como prueba rapida del flujo viejo.
+
+Ejemplo local:
 
 ```powershell
 docker compose run --rm trainer python battle.py --n 3 --p1 greedy --p2 random --server showdown:8000 --format gen9vgc2026regi
 ```
 
-### Apagar contenedores
-
-```powershell
-docker compose down
-```
-
----
+El flujo principal recomendado es `play.py`, pero `battle.py` sirve para verificar rapidamente que Showdown local y `poke-env` siguen funcionando.
 
 ## Entrenamiento PPO
 
-El entrenamiento principal está en:
+El entrenamiento principal sigue en:
 
 ```text
 train.py
 ```
 
-Para entrenar desde cero usando Docker:
+Dry-run:
 
 ```powershell
-docker compose run --rm trainer python train.py --server showdown:8000
+docker compose run --rm trainer python train.py --dry-run
 ```
 
-Por defecto el oponente es `random`.
+Entrenar contra oponente random en servidor local:
 
-Para entrenar contra el bot greedy:
+```powershell
+docker compose run --rm trainer python train.py --server showdown:8000 --opponent random
+```
+
+Entrenar contra greedy:
 
 ```powershell
 docker compose run --rm trainer python train.py --server showdown:8000 --opponent greedy
 ```
 
-Para continuar desde un checkpoint:
+Continuar desde checkpoint:
 
 ```powershell
 docker compose run --rm trainer python train.py --server showdown:8000 --resume checkpoints/vgc_ppo_100000.zip
@@ -180,224 +248,143 @@ Los checkpoints se guardan en:
 checkpoints/
 ```
 
-Los logs de entrenamiento se guardan en:
+Los logs se guardan en:
 
 ```text
 logs/
 ```
 
----
-
 ## TensorBoard
-
-Para ver métricas del entrenamiento:
 
 ```powershell
 docker compose --profile monitoring up -d tensorboard
 ```
 
-Luego abrir en el navegador:
+Abrir:
 
 ```text
 http://localhost:6006
 ```
 
-Para apagar TensorBoard:
+## Tests Y Scripts Utiles
 
-```powershell
-docker compose down
-```
-
----
-
-## Scripts de prueba
-
-### Test del cálculo de daño
+Test del calculo de dano:
 
 ```powershell
 docker compose run --rm trainer python scripts/test_damage.py
 ```
 
-Este script prueba el módulo `src/damage_calc.py`.
-
-### Test del encoding de estado
+Test del encoding de estado:
 
 ```powershell
 docker compose run --rm trainer python scripts/test_state_encoding.py
 ```
 
-Este script prueba el módulo `src/state_encoder.py`.
-
-### Dry-run general
+Listar formatos:
 
 ```powershell
-docker compose run --rm trainer python train.py --dry-run
+docker compose run --rm trainer python list_formats.py
 ```
 
-El dry-run verifica:
-
-- carga de datos desde `data/raw/`;
-- parseo de `team.txt`;
-- cálculo de stats;
-- cálculo de daño;
-- shape del vector de observación;
-- importación de `VGCEnv`;
-- disponibilidad de `stable-baselines3`.
-
----
-
-## Estructura real del repositorio
+## Estructura Del Repo
 
 ```text
-laboratorio pokemon showdown/
-├── README.md
-├── GUIDE.md
-├── FETCH_DATA_README.md
-├── proyecto.html
-├── team.txt
-├── requirements.txt
-├── setup.sh
-├── setup_server.bat
-├── setup_server.ps1
-├── setup_server.sh
-├── Dockerfile
-├── Dockerfile.showdown
-├── docker-compose.yml
-├── battle.py
-├── train.py
-├── list_formats.py
-├── data/
-│   ├── get_data.py
-│   └── raw/
-│       ├── abilities.json
-│       ├── items.json
-│       ├── moves.json
-│       ├── natures.json
-│       ├── pokemon.json
-│       └── type_chart.json
-├── scripts/
-│   ├── test_damage.py
-│   └── test_state_encoding.py
-└── src/
-    ├── damage_calc.py
-    ├── state_encoder.py
-    ├── utils.py
-    └── vgc_env.py
+.
+|-- README.md
+|-- GUIDE.md
+|-- FETCH_DATA_README.md
+|-- team.txt
+|-- requirements.txt
+|-- Dockerfile
+|-- Dockerfile.showdown
+|-- docker-compose.yml
+|-- login.py
+|-- play.py
+|-- battle.py
+|-- train.py
+|-- list_formats.py
+|-- data/
+|   |-- get_data.py
+|   `-- raw/
+|       |-- abilities.json
+|       |-- items.json
+|       |-- moves.json
+|       |-- natures.json
+|       |-- pokemon.json
+|       `-- type_chart.json
+|-- scripts/
+|   |-- test_damage.py
+|   `-- test_state_encoding.py
+`-- src/
+    |-- damage_calc.py
+    |-- format_resolver.py
+    |-- state_encoder.py
+    |-- utils.py
+    `-- vgc_env.py
 ```
 
----
+## Archivos Principales
 
-## Archivos principales
+### `login.py`
+
+Contiene la logica de crear bots autenticados y resolver el servidor.
+
+No loguea al importar. `play.py` llama explicitamente a sus funciones.
+
+Funciones principales:
+
+- `connect_main_bot(...)`
+- `connect_opponent_bot(...)`
+- `build_server_config(...)`
+
+### `play.py`
+
+Flujo principal actual:
+
+```text
+conectar -> limpiar batallas viejas -> jugar N partidas -> mostrar resultado -> cerrar
+```
+
+Tambien deja preparado el flujo futuro:
+
+```text
+conectar -> loop de comandos -> cerrar
+```
 
 ### `team.txt`
 
-Equipo fijo usado por el bot, en formato estilo Pokepaste.
+Equipo usado para formatos que requieren equipo propio, como `gen9vgc2026regi`.
 
-El equipo actual incluye:
-
-- Kyogre
-- Calyrex-Shadow
-- Incineroar
-- Rillaboom
-- Urshifu-Rapid-Strike
-- Roaring Moon
-
-### `battle.py`
-
-Corre batallas de prueba entre dos bots simples:
-
-- `random`: elige acciones aleatorias;
-- `greedy`: usa `MaxBasePowerPlayer`, que prioriza movimientos de alta potencia.
-
-Ejemplo:
-
-```powershell
-docker compose run --rm trainer python battle.py --n 3 --p1 greedy --p2 random --server showdown:8000
-```
-
-### `train.py`
-
-Script principal de entrenamiento.
-
-Incluye:
-
-- `--dry-run` para verificar módulos;
-- `--resume` para continuar desde checkpoint;
-- `--opponent random` o `--opponent greedy`;
-- `--server` para indicar el servidor Showdown.
-
-Ejemplo:
-
-```powershell
-docker compose run --rm trainer python train.py --server showdown:8000 --opponent random
-```
-
-### `src/utils.py`
-
-Carga datos JSON, parsea `team.txt`, calcula stats reales a nivel 50 y provee helpers de tipos, STAB, items, habilidades y movimientos.
-
-### `src/damage_calc.py`
-
-Implementa cálculo de daño aproximado usando stats, tipos, STAB, clima, objetos, habilidades y condiciones de batalla.
-
-### `src/state_encoder.py`
-
-Convierte el estado de batalla en un vector numérico. En el dry-run actual se verifica un vector de tamaño:
-
-```text
-854
-```
+Los formatos random como `gen9randombattle` no usan `team.txt`.
 
 ### `src/vgc_env.py`
 
-Define `VGCEnv`, un entorno de dobles Gen 9 basado en `poke-env`.
+Define `VGCEnv`, entorno de dobles Gen 9 basado en `poke-env`.
 
-Implementa:
+### `src/state_encoder.py`
 
-- `calc_reward(battle)`;
-- `embed_battle(battle)`;
-- espacios de observación;
-- reward por daño, KOs y victoria/derrota.
+Convierte estado de batalla en vector numerico para modelos.
 
----
+### `src/damage_calc.py`
 
-## Bots disponibles para pruebas
+Implementa calculo aproximado de dano.
 
-| Bot | Descripción |
-|---|---|
-| `random` | Selecciona acciones aleatorias. Sirve como baseline mínimo. |
-| `greedy` | Usa `MaxBasePowerPlayer`. Tiende a elegir ataques de mayor potencia. |
-
-Ejemplos:
+## Flujo Recomendado De Desarrollo
 
 ```powershell
-docker compose run --rm trainer python battle.py --n 5 --p1 greedy --p2 random --server showdown:8000
-```
-
-```powershell
-docker compose run --rm trainer python battle.py --n 5 --p1 random --p2 random --server showdown:8000
-```
-
----
-
-## Flujo recomendado de trabajo
-
-Para una sesión normal de desarrollo en Windows:
-
-```powershell
-cd "C:\Users\rodri\Desktop\R\UCA\2026 1ro\laboratorio pokemon showdown"
-
+docker compose down
+docker compose build
 docker compose up -d showdown
 
 docker compose run --rm trainer python train.py --dry-run
 
-docker compose run --rm trainer python battle.py --n 3 --p1 greedy --p2 random --server showdown:8000
+docker compose run --rm trainer python -u play.py --mode challenge --n 1 --p1 greedy --p2 random --server showdown:8000 --format gen9randombattle --battle-timeout 120 --login-timeout 30
 ```
 
-Si eso funciona, iniciar entrenamiento:
+Luego, para probar una partida real:
 
 ```powershell
-docker compose run --rm trainer python train.py --server showdown:8000 --opponent random
+docker compose run --rm trainer python -u play.py --mode ladder --n 1 --p1 random --server official --format gen9randombattle --battle-timeout 600 --login-timeout 30
 ```
 
 Para cerrar:
@@ -406,26 +393,15 @@ Para cerrar:
 docker compose down
 ```
 
----
+## Objetivo Experimental
 
-## Objetivo experimental
+El objetivo del proyecto es construir un agente capaz de jugar Pokemon Showdown usando primero politicas simples y luego modelos entrenados.
 
-El objetivo del proyecto es construir un agente capaz de jugar batallas dobles VGC usando aprendizaje por refuerzo.
+La version actual esta enfocada en infraestructura:
 
-La versión actual todavía está en fase de infraestructura y prototipo:
-
-1. cargar datos y equipo;
-2. representar estados;
-3. calcular rewards;
-4. conectar con Pokémon Showdown;
-5. correr baselines simples;
-6. entrenar PPO contra bots básicos.
-
-A partir de ahí se puede avanzar hacia:
-
-- evaluación sistemática contra baselines;
-- ajuste de reward shaping;
-- entrenamiento por currículum;
-- self-play;
-- imitation learning desde replays;
-- análisis de decisiones del agente.
+1. conectar cuentas;
+2. jugar partidas locales y reales;
+3. observar estado por turno;
+4. ejecutar decisiones basicas;
+5. cerrar sesiones correctamente;
+6. preparar el camino para modelos entrenados.
