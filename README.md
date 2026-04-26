@@ -198,6 +198,105 @@ docker compose run --rm trainer python -u play.py --mode ladder --n 1 --p1 rando
 
 Para self-play, entrenamiento o muchas pruebas repetidas, usar el servidor local Docker.
 
+## Ingesta De Replays Y Dataset
+
+Antes de implementar modelos nuevos, el repo tiene una ingesta comun de replays. La idea es que todos los modelos lean desde el mismo dataset base, y que cada modelo tenga luego su propio adaptador si necesita tensores distintos.
+
+La ingesta guarda tres capas:
+
+```text
+data/replays/
+|-- raw/<format>/<battle_id>.json
+|-- parsed/<format>/<battle_id>.json
+|-- datasets/<format>_decisions.jsonl
+`-- index.jsonl
+```
+
+Politica de almacenamiento:
+
+- `raw/` guarda el JSON original de Pokemon Showdown sin modificar.
+- `parsed/` guarda una version normalizada por turnos, eventos, jugadores, acciones y resultado.
+- `datasets/*_decisions.jsonl` guarda muestras de decision derivadas del parsed.
+- `index.jsonl` mantiene un indice de replays descargados.
+- El codigo no borra ni sobreescribe replays raw ya descargados.
+- `data/replays/` esta ignorado por Git porque puede crecer mucho.
+
+### Descargar replays de las cuentas de los bots
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --include-default-bots --limit 25 --pages 1
+```
+
+Para VGC, usar el formato vigente:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9vgc2026regi --include-default-bots --limit 25 --pages 1
+```
+
+### Descargar replays de un usuario especifico
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --user MichaelderBeste2 --limit 10 --pages 1
+```
+
+Se puede repetir `--user`:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --user UsuarioA --user UsuarioB --limit 10
+```
+
+### Descargar replays de una lista de usuarios
+
+Crear un archivo, por ejemplo:
+
+```text
+data/replay_users/gen9randombattle_top.txt
+```
+
+con un usuario por linea:
+
+```text
+smokyaim
+milkreo
+helicopyer
+```
+
+Luego correr:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --users-file data/replay_users/gen9randombattle_top.txt --limit 20 --pages 1
+```
+
+### Descargar desde el top ladder
+
+Este comando toma usuarios del ladder publico del formato y descarga replays publicos de esos usuarios:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --top-ladder 10 --limit 5 --pages 1
+```
+
+Esto busca hasta 10 usuarios top y descarga hasta 5 replays por usuario.
+
+### Descargar un replay puntual por ID
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --replay-id gen9randombattle-2592325086
+```
+
+### Reconstruir `parsed/` desde `raw/`
+
+Si se mejora el parser, no hace falta descargar todo de nuevo:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --rebuild-parsed --reparse
+```
+
+### Probar sin escribir archivos
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9randombattle --top-ladder 3 --limit 1 --dry-run
+```
+
 ## Smoke Test Legado: `battle.py`
 
 `battle.py` sigue existiendo como prueba rapida del flujo viejo.
