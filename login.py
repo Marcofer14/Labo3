@@ -54,6 +54,7 @@ def make_policy_player(
     team: str | None,
     server_configuration: ServerConfiguration,
     account_configuration: AccountConfiguration | None = None,
+    policy_kwargs: dict | None = None,
 ):
     """Crea un jugador random o greedy con parametros compartidos."""
     kwargs = dict(
@@ -68,8 +69,12 @@ def make_policy_player(
         return RandomPlayer(**kwargs)
     if kind == "greedy":
         return MaxBasePowerPlayer(**kwargs)
+    if kind == "alphazero_mcts":
+        from src.alphazero.player import AlphaZeroMCTSPlayer
 
-    raise ValueError(f"Tipo desconocido: {kind}. Opciones: random, greedy")
+        return AlphaZeroMCTSPlayer(**kwargs, **(policy_kwargs or {}))
+
+    raise ValueError(f"Tipo desconocido: {kind}. Opciones: random, greedy, alphazero_mcts")
 
 
 def make_account(username: str, password: str | None) -> AccountConfiguration:
@@ -91,6 +96,7 @@ def connect_bot(
     username: str,
     password: str | None,
     team_path: str | Path = DEFAULT_TEAM_PATH,
+    policy_kwargs: dict | None = None,
 ):
     """Crea un bot autenticado con la politica indicada."""
     account = make_account(username, password)
@@ -103,6 +109,7 @@ def connect_bot(
         team=team,
         server_configuration=server_cfg,
         account_configuration=account,
+        policy_kwargs=policy_kwargs,
     )
 
 
@@ -112,6 +119,7 @@ def connect_main_bot(
     battle_format: str,
     server: str,
     team_path: str | Path = DEFAULT_TEAM_PATH,
+    policy_kwargs: dict | None = None,
 ):
     """
     Crea/conecta el bot principal con identidad fija.
@@ -126,6 +134,7 @@ def connect_main_bot(
         username=os.environ.get("SHOWDOWN_USERNAME", BOT_USERNAME),
         password=os.environ.get("SHOWDOWN_PASSWORD", BOT_PASSWORD),
         team_path=team_path,
+        policy_kwargs=policy_kwargs,
     )
 
 
@@ -135,6 +144,7 @@ def connect_opponent_bot(
     battle_format: str,
     server: str,
     team_path: str | Path = DEFAULT_TEAM_PATH,
+    policy_kwargs: dict | None = None,
 ):
     """
     Crea/conecta el segundo bot con cuenta fija.
@@ -148,4 +158,5 @@ def connect_opponent_bot(
         username=os.environ.get("SHOWDOWN_OPPONENT_USERNAME", OPPONENT_USERNAME),
         password=os.environ.get("SHOWDOWN_OPPONENT_PASSWORD", OPPONENT_PASSWORD),
         team_path=team_path,
+        policy_kwargs=policy_kwargs,
     )

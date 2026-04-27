@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import inspect
+import os
 
 from poke_env.player.player import handle_threaded_coroutines
 
@@ -21,7 +22,10 @@ from login import (
     build_server_config,
     connect_main_bot,
     connect_opponent_bot,
+    load_team,
+    should_use_team,
 )
+from src.alphazero.showdown_simulator import ShowdownSimulationTracker, attach_simulation_tracking
 from src.format_resolver import resolve_format
 
 
@@ -108,6 +112,38 @@ def enable_turn_logging(player, label: str) -> None:
         return choice
 
     player.choose_move = logged_choose_move
+
+
+def alphazero_policy_kwargs(args, tracker: ShowdownSimulationTracker | None = None) -> dict:
+    return {
+        "checkpoint_path": args.alphazero_checkpoint,
+        "simulations": args.alphazero_simulations,
+        "search_depth": args.alphazero_depth,
+        "max_candidates": args.alphazero_max_candidates,
+        "cpuct": args.alphazero_cpuct,
+        "temperature": args.alphazero_temperature,
+        "heuristic_weight": args.alphazero_heuristic_weight,
+        "depth2_weight": args.alphazero_depth2_weight,
+        "showdown_simulator_url": args.alphazero_simulator_url,
+        "live_state_url": args.alphazero_live_state_url,
+        "simulation_tracker": tracker,
+        "simulator_timeout": args.alphazero_simulator_timeout,
+        "simulator_max_choices": args.alphazero_simulator_max_choices,
+        "simulator_opponent_policy": args.alphazero_simulator_opponent_policy,
+        "simulator_robust_worst_weight": args.alphazero_simulator_robust_worst_weight,
+        "require_showdown_simulator": args.alphazero_require_simulator,
+        "device": args.alphazero_device,
+    }
+
+
+def policy_kwargs_for(
+    policy: str,
+    args,
+    tracker: ShowdownSimulationTracker | None = None,
+) -> dict | None:
+    if policy == "alphazero_mcts":
+        return alphazero_policy_kwargs(args, tracker)
+    return None
 
 
 async def _wait_player_logged_in(player) -> None:
@@ -216,12 +252,25 @@ async def run_ladder_games(main_bot, n_battles: int) -> None:
 async def play(args) -> tuple[object, object | None, bool]:
     battle_format = resolve_format(args.format)
     server_cfg = build_server_config(args.server)
+    uses_alphazero = args.p1 == "alphazero_mcts" or args.p2 == "alphazero_mcts"
+    tracker = None
+    if (
+        uses_alphazero
+        and args.alphazero_depth >= 2
+        and should_use_team(battle_format)
+        and not args.alphazero_live_state_url
+    ):
+        tracker = ShowdownSimulationTracker(
+            battle_format=battle_format,
+            team_text=load_team(args.team),
+        )
 
     main_bot = connect_main_bot(
         policy=args.p1,
         battle_format=battle_format,
         server=args.server,
         team_path=args.team,
+        policy_kwargs=policy_kwargs_for(args.p1, args, tracker),
     )
     opponent = None
     if args.mode == "challenge":
@@ -230,7 +279,13 @@ async def play(args) -> tuple[object, object | None, bool]:
             battle_format=battle_format,
             server=args.server,
             team_path=args.team,
+            policy_kwargs=policy_kwargs_for(args.p2, args, tracker),
         )
+
+    if tracker is not None:
+        attach_simulation_tracking(main_bot, tracker)
+        if opponent is not None:
+            attach_simulation_tracking(opponent, tracker)
 
     print("=" * 55)
     print("  VGC Bot - Play")
@@ -242,6 +297,22 @@ async def play(args) -> tuple[object, object | None, bool]:
         print("  Rival:     ladder")
     else:
         print(f"  Rival:     {args.p2.upper()} ({opponent.username})")
+    if uses_alphazero:
+        print(
+            "  AlphaZero: "
+            f"checkpoint={args.alphazero_checkpoint or 'sin checkpoint'} | "
+            f"sims={args.alphazero_simulations} | depth={args.alphazero_depth}"
+        )
+        if args.alphazero_depth >= 2:
+            simulator = args.alphazero_simulator_url or "desactivado"
+            live_state = args.alphazero_live_state_url or "tracker por historial"
+            print(
+                f"  Simulador: {simulator} | "
+                f"estado={live_state} | "
+                f"policy={args.alphazero_simulator_opponent_policy} | "
+                f"worst_weight={args.alphazero_simulator_robust_worst_weight} | "
+                f"required={args.alphazero_require_simulator}"
+            )
     print(f"  Partidas:  {args.n}")
     print("=" * 55)
 
@@ -342,14 +413,14 @@ def parse_args():
         "--p1",
         type=str,
         default="greedy",
-        choices=["random", "greedy"],
+        choices=["random", "greedy", "alphazero_mcts"],
         help="Politica del bot principal (default: greedy)",
     )
     parser.add_argument(
         "--p2",
         type=str,
         default="random",
-        choices=["random", "greedy"],
+        choices=["random", "greedy", "alphazero_mcts"],
         help="Politica del segundo bot (default: random)",
     )
     parser.add_argument(
@@ -381,6 +452,105 @@ def parse_args():
         type=float,
         default=30.0,
         help="Segundos maximos para esperar login inicial (default: 30)",
+    )
+    parser.add_argument(
+        "--alphazero-checkpoint",
+        type=str,
+        default=None,
+        help="Checkpoint .pt para la politica alphazero_mcts",
+    )
+    parser.add_argument(
+        "--alphazero-device",
+        type=str,
+        default="cpu",
+        help="Dispositivo para alphazero_mcts: cpu o cuda (default: cpu)",
+    )
+    parser.add_argument(
+        "--alphazero-simulations",
+        type=int,
+        default=64,
+        help="Simulaciones MCTS por decision (default: 64)",
+    )
+    parser.add_argument(
+        "--alphazero-depth",
+        type=int,
+        default=1,
+        help="Profundidad de busqueda MCTS (default: 1)",
+    )
+    parser.add_argument(
+        "--alphazero-max-candidates",
+        type=int,
+        default=96,
+        help="Maximo de acciones dobles candidatas a rankear (0 = todas, default: 96)",
+    )
+    parser.add_argument(
+        "--alphazero-cpuct",
+        type=float,
+        default=1.5,
+        help="Constante de exploracion PUCT para MCTS (default: 1.5)",
+    )
+    parser.add_argument(
+        "--alphazero-temperature",
+        type=float,
+        default=0.0,
+        help="Temperatura al elegir por visitas MCTS (default: 0, determinista)",
+    )
+    parser.add_argument(
+        "--alphazero-heuristic-weight",
+        type=float,
+        default=0.75,
+        help="Peso del prior tactico mientras el modelo aprende (default: 0.75)",
+    )
+    parser.add_argument(
+        "--alphazero-depth2-weight",
+        type=float,
+        default=0.65,
+        help="Peso del evaluador tactico depth 2 cuando --alphazero-depth >= 2 (default: 0.65)",
+    )
+    parser.add_argument(
+        "--alphazero-simulator-url",
+        type=str,
+        default=os.environ.get("SHOWDOWN_SIMULATOR_URL", ""),
+        help="URL del servicio Showdown real para depth >= 2 (default: SHOWDOWN_SIMULATOR_URL)",
+    )
+    parser.add_argument(
+        "--alphazero-live-state-url",
+        type=str,
+        default=os.environ.get("SHOWDOWN_LIVE_STATE_URL", ""),
+        help=(
+            "URL del puente de estado vivo del servidor local Showdown. "
+            "Si esta activo, depth >= 2 usa el estado interno real de la batalla "
+            "en vez de reconstruir historial."
+        ),
+    )
+    parser.add_argument(
+        "--alphazero-simulator-timeout",
+        type=float,
+        default=10.0,
+        help="Timeout por request al simulador Showdown real (default: 10)",
+    )
+    parser.add_argument(
+        "--alphazero-simulator-max-choices",
+        type=int,
+        default=12,
+        help="Maximo de respuestas por lado dentro del simulador real (default: 12)",
+    )
+    parser.add_argument(
+        "--alphazero-simulator-opponent-policy",
+        choices=["minimax", "mean", "robust"],
+        default="robust",
+        help="Como agregar respuestas del rival en el simulador real (default: robust)",
+    )
+    parser.add_argument(
+        "--alphazero-simulator-robust-worst-weight",
+        type=float,
+        default=0.35,
+        help="Peso del peor caso dentro de la politica robust (default: 0.35)",
+    )
+    parser.add_argument(
+        "--alphazero-require-simulator",
+        action="store_true",
+        help="Falla si depth >= 2 no puede usar el simulador Showdown real.",
     )
     return parser.parse_args()
 

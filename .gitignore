@@ -18,10 +18,19 @@ env/
 
 # Modelos y checkpoints (pueden ser muy pesados)
 checkpoints/
+models/
+src/models/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pkl
+*.joblib
 *.zip
 
 # Logs de entrenamiento
 logs/
+*.log
 
 # Replays descargados y datasets derivados (pueden crecer mucho)
 data/

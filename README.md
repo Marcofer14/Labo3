@@ -19,6 +19,9 @@ El proyecto actualmente permite:
 - jugar partidas locales entre dos bots por challenge;
 - jugar una partida real en ladder oficial en formato random battle;
 - elegir politica `random` o `greedy`;
+- elegir politica `alphazero_mcts` con checkpoint entrenado;
+- usar `showdown-sim` para evaluar ramas MCTS con el motor real de Showdown;
+- consultar el estado vivo de batallas locales desde Showdown para que MCTS no reconstruya el historial a mano;
 - imprimir turnos, estado resumido y decisiones del bot;
 - detectar el final de la partida desde el codigo y cerrar la sesion;
 - limpiar batallas abiertas viejas al arrancar para evitar arrastrar partidas anteriores.
@@ -53,16 +56,24 @@ Desde la raiz del repo:
 ```powershell
 docker compose down
 docker compose build
-docker compose up -d showdown
+docker compose up -d showdown showdown-sim
 docker compose ps
 ```
 
-El servicio `showdown` debe quedar `healthy`.
+Los servicios `showdown` y `showdown-sim` deben quedar `healthy`. `showdown` expone el websocket local en `8000` y un puente de estado vivo en `9002`; `showdown-sim` expone el motor JS real de Pokemon Showdown en `9001` para busquedas MCTS profundas.
 
-Para ver logs del servidor local:
+Checks rapidos:
+
+```powershell
+Invoke-WebRequest http://localhost:9002/health
+Invoke-WebRequest http://localhost:9001/health
+```
+
+Para ver logs del servidor local o del simulador:
 
 ```powershell
 docker compose logs -f showdown
+docker compose logs -f showdown-sim
 ```
 
 Para apagar todo:
@@ -361,6 +372,58 @@ Los logs se guardan en:
 logs/
 ```
 
+## AlphaZero-Style MCTS + PPO
+
+La branch del modelo agrega una politica `alphazero_mcts` para `play.py` y estos scripts:
+
+- `scripts/pretrain_alphazero_replays.py`: preentrena la red policy+value usando `datasets/<format>_double_decisions.jsonl`.
+- `scripts/train_alphazero_mcts_ppo.py`: juega partidas locales con MCTS y actualiza la red con PPO + distribucion de visitas MCTS.
+- `scripts/evaluate_alphazero_offline.py`: evalua checkpoints sin usar websocket.
+- `scripts/summarize_simulator_diagnostics.py`: resume diagnosticos del simulador cuando se guardan.
+
+El modelo usa un ranker de acciones legales: en cada turno toma el estado actual, enumera las acciones dobles legales de `poke-env`, puntua cada candidata y MCTS elige. Asi no depende de un vocabulario cerrado de acciones de otros equipos.
+
+Para depth 2 o mayor hay dos servicios importantes:
+
+- `showdown-sim` (`http://showdown-sim:9001`): evalua ramas con el motor real de Pokemon Showdown.
+- `showdown-live-state` (`http://showdown:9002`): lee el estado interno serializado de la batalla viva y evita reconstruir el historial por texto.
+
+Antes de entrenar, reconstruir el dataset doble si hace falta:
+
+```powershell
+docker compose run --rm trainer python scripts/ingest_replays.py --format gen9vgc2026regi --rebuild-parsed
+```
+
+Preentrenar desde replays descargados:
+
+```powershell
+docker compose run --rm trainer python -u scripts/pretrain_alphazero_replays.py --dataset data/replays/datasets/gen9vgc2026regi_double_decisions.jsonl --epochs 10 --batch-size 128 --output-dir checkpoints/alphazero_pretrain --device cpu
+```
+
+Continuar con MCTS+PPO en servidor local usando estado vivo:
+
+```powershell
+docker compose run --rm trainer python -u scripts/train_alphazero_mcts_ppo.py --iterations 50 --self-play-games 10 --opponent-cycle random,greedy,self,greedy --mcts-simulations 128 --mcts-depth 2 --max-candidates 96 --simulator-max-choices 8 --simulator-opponent-policy robust --simulator-robust-worst-weight 0.35 --simulator-timeout 180 --live-state-url http://showdown:9002 --require-simulator --server showdown:8000 --format gen9vgc2026regi --team team.txt --device cpu --output-dir checkpoints/alphazero_mcts_ppo_d2_required --rollout-path data/alphazero/rollouts_d2_required.jsonl
+```
+
+Si el header de `play.py` muestra `estado=http://showdown:9002`, MCTS esta usando el estado vivo del servidor local. Si no se pasa `--live-state-url`, el codigo vuelve al tracker por historial, que sirve como fallback pero puede divergir por RNG o reparaciones del replay.
+
+Probar el checkpoint contra `random`:
+
+```powershell
+docker compose run --rm trainer python -u play.py --mode challenge --n 30 --p1 alphazero_mcts --p2 random --server showdown:8000 --format gen9vgc2026regi --team team.txt --alphazero-checkpoint checkpoints/alphazero_mcts_ppo_d2_required/best.pt --alphazero-simulations 128 --alphazero-depth 2 --alphazero-max-candidates 96 --alphazero-simulator-max-choices 8 --alphazero-simulator-opponent-policy robust --alphazero-simulator-robust-worst-weight 0.35 --alphazero-simulator-timeout 180 --alphazero-live-state-url http://showdown:9002 --alphazero-require-simulator --alphazero-device cpu --battle-timeout 1800
+```
+
+Probar contra `greedy`:
+
+```powershell
+docker compose run --rm trainer python -u play.py --mode challenge --n 30 --p1 alphazero_mcts --p2 greedy --server showdown:8000 --format gen9vgc2026regi --team team.txt --alphazero-checkpoint checkpoints/alphazero_mcts_ppo_d2_required/best.pt --alphazero-simulations 128 --alphazero-depth 2 --alphazero-max-candidates 96 --alphazero-simulator-max-choices 8 --alphazero-simulator-opponent-policy robust --alphazero-simulator-robust-worst-weight 0.35 --alphazero-simulator-timeout 180 --alphazero-live-state-url http://showdown:9002 --alphazero-require-simulator --alphazero-device cpu --battle-timeout 1800
+```
+
+Los checkpoints, rollouts, replays descargados y logs quedan fuera de Git por `.gitignore`: `checkpoints/`, `data/`, `logs/`, `models/`, `src/models/` y extensiones comunes de modelos.
+
+Rumbo proximo recomendado: revisar por que el entrenamiento largo paro en la iteracion 23. Para eso conviene mirar los logs del contenedor, el ultimo checkpoint, `data/alphazero/rollouts*.jsonl` y, si hace falta, activar `--simulator-diagnostics-path logs/simulator_diagnostics.jsonl` para separar errores de simulador, timeouts, reparaciones y cortes por excepcion.
+
 ## TensorBoard
 
 ```powershell
@@ -420,9 +483,24 @@ docker compose run --rm trainer python list_formats.py
 |       |-- pokemon.json
 |       `-- type_chart.json
 |-- scripts/
+|   |-- evaluate_alphazero_offline.py
+|   |-- pretrain_alphazero_replays.py
+|   |-- summarize_simulator_diagnostics.py
+|   |-- train_alphazero_mcts_ppo.py
 |   |-- test_damage.py
 |   `-- test_state_encoding.py
+|-- tools/
+|   |-- patch_showdown_live_state.js
+|   |-- showdown_live_state_bridge.js
+|   `-- showdown_sim_server.js
 `-- src/
+    |-- alphazero/
+    |   |-- features.py
+    |   |-- mcts.py
+    |   |-- network.py
+    |   |-- offline_selfplay.py
+    |   |-- player.py
+    |   `-- showdown_simulator.py
     |-- damage_calc.py
     |-- format_resolver.py
     |-- state_encoder.py
@@ -481,7 +559,7 @@ Implementa calculo aproximado de dano.
 ```powershell
 docker compose down
 docker compose build
-docker compose up -d showdown
+docker compose up -d showdown showdown-sim
 
 docker compose run --rm trainer python train.py --dry-run
 

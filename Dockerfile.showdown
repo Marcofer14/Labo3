@@ -7,9 +7,16 @@ WORKDIR /showdown
 
 # GIT_SSL_NO_VERIFY: evita error de certificado SSL en redes con proxy/firewall
 RUN GIT_SSL_NO_VERIFY=true git clone --depth 1 https://github.com/smogon/pokemon-showdown.git . \
-    && npm install --omit=dev
+    && npm install --omit=dev \
+    && ./build
 
-EXPOSE 8000
+COPY tools/showdown_live_state_bridge.js /showdown/dist/server/live-state-bridge.js
+COPY tools/patch_showdown_live_state.js /tmp/patch_showdown_live_state.js
+RUN node /tmp/patch_showdown_live_state.js
+
+ENV SHOWDOWN_LIVE_STATE_PORT=9002
+
+EXPOSE 8000 9002
 
 # --no-security: permite que los bots se conecten sin autenticación
-CMD ["node", "pokemon-showdown", "start", "--no-security"]
+CMD ["node", "pokemon-showdown", "start", "--skip-build", "--no-security"]

@@ -35,6 +35,9 @@ services:
     container_name: showdown
     ports:
       - "8000:8000"
+      - "9002:9002"
+    environment:
+      - SHOWDOWN_LIVE_STATE_PORT=9002
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
@@ -42,6 +45,24 @@ services:
       timeout: 10s
       retries: 8
       start_period: 30s
+
+  showdown-sim:
+    build:
+      context: .
+      dockerfile: Dockerfile.showdown
+    container_name: showdown-sim
+    ports:
+      - "9001:9001"
+    volumes:
+      - .:/app
+    command: ["node", "/app/tools/showdown_sim_server.js"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:9001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 10s
 
   # ── Trainer Python + RL ──────────────────────────────────────────
   trainer:
@@ -52,8 +73,12 @@ services:
     depends_on:
       showdown:
         condition: service_healthy
+      showdown-sim:
+        condition: service_healthy
     environment:
       - SHOWDOWN_SERVER=showdown:8000
+      - SHOWDOWN_SIMULATOR_URL=http://showdown-sim:9001
+      - SHOWDOWN_LIVE_STATE_URL=http://showdown:9002
     volumes:
       - .:/app
       - ./checkpoints:/app/checkpoints
