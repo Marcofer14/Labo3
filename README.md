@@ -406,6 +406,8 @@ Continuar con MCTS+PPO en servidor local usando estado vivo:
 docker compose run --rm trainer python -u scripts/train_alphazero_mcts_ppo.py --iterations 50 --self-play-games 10 --opponent-cycle random,greedy,self,greedy --mcts-simulations 128 --mcts-depth 2 --max-candidates 96 --simulator-max-choices 8 --simulator-opponent-policy robust --simulator-robust-worst-weight 0.35 --simulator-timeout 180 --live-state-url http://showdown:9002 --require-simulator --server showdown:8000 --format gen9vgc2026regi --team team.txt --device cpu --output-dir checkpoints/alphazero_mcts_ppo_d2_required --rollout-path data/alphazero/rollouts_d2_required.jsonl
 ```
 
+El script escribe eventos de entrenamiento y memoria en `logs/alphazero_train_events.jsonl` por defecto. Se puede cambiar con `--training-log-path logs/mi_run.jsonl`.
+
 Si el header de `play.py` muestra `estado=http://showdown:9002`, MCTS esta usando el estado vivo del servidor local. Si no se pasa `--live-state-url`, el codigo vuelve al tracker por historial, que sirve como fallback pero puede divergir por RNG o reparaciones del replay.
 
 Probar el checkpoint contra `random`:
@@ -422,7 +424,9 @@ docker compose run --rm trainer python -u play.py --mode challenge --n 30 --p1 a
 
 Los checkpoints, rollouts, replays descargados y logs quedan fuera de Git por `.gitignore`: `checkpoints/`, `data/`, `logs/`, `models/`, `src/models/` y extensiones comunes de modelos.
 
-Rumbo proximo recomendado: revisar por que el entrenamiento largo paro en la iteracion 23. Para eso conviene mirar los logs del contenedor, el ultimo checkpoint, `data/alphazero/rollouts*.jsonl` y, si hace falta, activar `--simulator-diagnostics-path logs/simulator_diagnostics.jsonl` para separar errores de simulador, timeouts, reparaciones y cortes por excepcion.
+Si Docker muestra `ExitCode=137` u `OOMKilled=true`, el entrenamiento fue matado por memoria. El entrenamiento ahora carga la ventana `--train-window` en streaming desde offsets del JSONL y no mantiene todos los rollouts parseados en memoria durante PPO. Si vuelve a pasar, bajar temporalmente `--train-window`, `--batch-size` o subir la memoria de Docker Desktop.
+
+Rumbo proximo recomendado: revisar la calidad del modelo despues de un entrenamiento que llegue al numero de iteraciones planeado. Para diagnostico fino, mirar `logs/alphazero_train_events.jsonl`, el ultimo checkpoint, `data/alphazero/rollouts*.jsonl` y, si hace falta, activar `--simulator-diagnostics-path logs/simulator_diagnostics.jsonl` para separar errores de simulador, timeouts, reparaciones y cortes por excepcion.
 
 ## TensorBoard
 

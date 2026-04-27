@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import gc
 import json
 import os
 import sys
 import time
 import uuid
-from collections import Counter
+from collections import Counter, deque
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,42 @@ def append_jsonl(path: Path, row: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(row, ensure_ascii=True) + "\n")
+
+
+def memory_snapshot() -> dict[str, Any]:
+    snapshot: dict[str, Any] = {}
+    status_path = Path("/proc/self/status")
+    if status_path.exists():
+        for line in status_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith(("VmRSS:", "VmHWM:", "VmSize:", "VmPeak:")):
+                key, value = line.split(":", 1)
+                snapshot[key.lower()] = value.strip()
+    if torch.cuda.is_available():
+        snapshot["cuda_allocated_mb"] = round(torch.cuda.memory_allocated() / 1024 / 1024, 1)
+        snapshot["cuda_reserved_mb"] = round(torch.cuda.memory_reserved() / 1024 / 1024, 1)
+    return snapshot
+
+
+def format_memory(snapshot: dict[str, Any] | None = None) -> str:
+    snapshot = snapshot or memory_snapshot()
+    if not snapshot:
+        return "mem=n/a"
+    preferred = ["vmrss", "vmhwm", "vmsize", "vmpeak", "cuda_allocated_mb", "cuda_reserved_mb"]
+    parts = [f"{key}={snapshot[key]}" for key in preferred if key in snapshot]
+    return "mem=" + " ".join(parts)
+
+
+def append_training_event(args, event: str, **fields: Any) -> None:
+    path = getattr(args, "training_log_path", None)
+    if not path:
+        return
+    row = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "event": event,
+        "memory": memory_snapshot(),
+    }
+    row.update(fields)
+    append_jsonl(path, row)
 
 
 def diagnostics_path_for(args) -> Path | None:
@@ -100,6 +137,33 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
             if line.strip():
                 rows.append(json.loads(line))
     return rows
+
+
+def collect_jsonl_tail_offsets(path: Path, max_rows: int) -> list[int]:
+    if not path.exists():
+        return []
+    if max_rows and max_rows > 0:
+        offsets: deque[int] | list[int] = deque(maxlen=max_rows)
+    else:
+        offsets = []
+    with path.open("rb") as handle:
+        while True:
+            offset = handle.tell()
+            line = handle.readline()
+            if not line:
+                break
+            if line.strip():
+                offsets.append(offset)
+    return list(offsets)
+
+
+def iter_jsonl_offsets(path: Path, offsets: list[int]):
+    with path.open("rb") as handle:
+        for offset in offsets:
+            handle.seek(offset)
+            line = handle.readline()
+            if line.strip():
+                yield json.loads(line)
 
 
 async def close_player(player) -> None:
@@ -366,81 +430,144 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(float(value), high))
 
 
+def is_trainable_rollout_row(row: dict[str, Any]) -> bool:
+    return (
+        bool(row.get("action_features"))
+        and bool(row.get("state_features"))
+        and len(row["state_features"]) == STATE_FEATURE_SIZE
+        and all(len(features) == ACTION_FEATURE_SIZE for features in row["action_features"])
+    )
+
+
+def empty_rollout_stats() -> dict[str, float]:
+    return {
+        "forced": 0.0,
+        "repaired": 0.0,
+        "real_simulated": 0.0,
+        "fallback_simulated": 0.0,
+        "sim_error_rows": 0.0,
+        "effective_weight": 0.0,
+        "filtered_fallback": 0.0,
+    }
+
+
+def add_rollout_stats(total: dict[str, float], update: dict[str, float]) -> None:
+    for key, value in update.items():
+        total[key] = total.get(key, 0.0) + float(value)
+
+
+def prepare_rollout_row(args, row: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, float]]:
+    row = dict(row)
+    stats = empty_rollout_stats()
+    simulator_used = bool(row.get("simulator_used"))
+    if args.mcts_depth >= 2:
+        if simulator_used:
+            stats["real_simulated"] += 1
+        else:
+            stats["fallback_simulated"] += 1
+            if args.require_simulator:
+                stats["filtered_fallback"] += 1
+                return None, stats
+
+    candidate_count = int(row.get("candidate_count") or len(row.get("action_features") or []))
+    is_forced = bool(row.get("forced_decision")) or candidate_count <= 1
+    repairs = int(row.get("simulator_repairs") or 0)
+    sim_errors = int(row.get("simulator_errors") or 0)
+
+    weight = 1.0
+    if is_forced:
+        stats["forced"] += 1
+        weight *= args.forced_weight
+    if repairs > 0:
+        stats["repaired"] += 1
+        weight *= args.repair_weight
+    if sim_errors > 0:
+        stats["sim_error_rows"] += 1
+        weight *= args.simulator_error_weight
+
+    outcome = _clamp(float(row.get("outcome", 0.0)), -1.0, 1.0)
+    search_value = _clamp(float(row.get("old_value", 0.0)), -1.0, 1.0)
+    mix = _clamp(args.value_search_weight, 0.0, 1.0)
+    row["sample_weight"] = max(0.0, float(weight))
+    row["value_target"] = _clamp((1.0 - mix) * outcome + mix * search_value, -1.0, 1.0)
+    stats["effective_weight"] += row["sample_weight"]
+    return row, stats
+
+
 def prepare_rollout_rows(args, rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, float]]:
     prepared = []
-    forced = 0
-    repaired = 0
-    real_simulated = 0
-    fallback_simulated = 0
-    sim_error_rows = 0
-    total_weight = 0.0
+    stats = empty_rollout_stats()
     for row in rows:
-        row = dict(row)
-        simulator_used = bool(row.get("simulator_used"))
-        if args.mcts_depth >= 2:
-            if simulator_used:
-                real_simulated += 1
-            else:
-                fallback_simulated += 1
-                if args.require_simulator:
-                    continue
-        candidate_count = int(row.get("candidate_count") or len(row.get("action_features") or []))
-        is_forced = bool(row.get("forced_decision")) or candidate_count <= 1
-        repairs = int(row.get("simulator_repairs") or 0)
-        sim_errors = int(row.get("simulator_errors") or 0)
-
-        weight = 1.0
-        if is_forced:
-            forced += 1
-            weight *= args.forced_weight
-        if repairs > 0:
-            repaired += 1
-            weight *= args.repair_weight
-        if sim_errors > 0:
-            sim_error_rows += 1
-            weight *= args.simulator_error_weight
-
-        outcome = _clamp(float(row.get("outcome", 0.0)), -1.0, 1.0)
-        search_value = _clamp(float(row.get("old_value", 0.0)), -1.0, 1.0)
-        mix = _clamp(args.value_search_weight, 0.0, 1.0)
-        row["sample_weight"] = max(0.0, float(weight))
-        row["value_target"] = _clamp((1.0 - mix) * outcome + mix * search_value, -1.0, 1.0)
-        prepared.append(row)
-        total_weight += row["sample_weight"]
-
-    stats = {
-        "forced": float(forced),
-        "repaired": float(repaired),
-        "real_simulated": float(real_simulated),
-        "fallback_simulated": float(fallback_simulated),
-        "sim_error_rows": float(sim_error_rows),
-        "effective_weight": float(total_weight),
-    }
+        prepared_row, row_stats = prepare_rollout_row(args, row)
+        add_rollout_stats(stats, row_stats)
+        if prepared_row is not None:
+            prepared.append(prepared_row)
     return prepared, stats
+
+
+def collect_training_offsets(args) -> tuple[list[int], dict[str, float]]:
+    window_offsets = collect_jsonl_tail_offsets(args.rollout_path, args.train_window)
+    stats = empty_rollout_stats()
+    stats["window_rows"] = float(len(window_offsets))
+    stats["invalid_rows"] = 0.0
+    valid_offsets: list[int] = []
+    for offset, row in zip(window_offsets, iter_jsonl_offsets(args.rollout_path, window_offsets)):
+        if not is_trainable_rollout_row(row):
+            stats["invalid_rows"] += 1
+            continue
+        prepared_row, row_stats = prepare_rollout_row(args, row)
+        add_rollout_stats(stats, row_stats)
+        if prepared_row is not None:
+            valid_offsets.append(offset)
+    return valid_offsets, stats
+
+
+def iter_prepared_batches(args, offsets: list[int], batch_size: int, shuffle: bool):
+    if shuffle:
+        generator = torch.Generator().manual_seed(int(time.time()))
+        order = torch.randperm(len(offsets), generator=generator).tolist()
+    else:
+        order = list(range(len(offsets)))
+
+    batch: list[dict[str, Any]] = []
+    with args.rollout_path.open("rb") as handle:
+        for index in order:
+            handle.seek(offsets[index])
+            line = handle.readline()
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if not is_trainable_rollout_row(row):
+                continue
+            prepared_row, _ = prepare_rollout_row(args, row)
+            if prepared_row is None:
+                continue
+            batch.append(prepared_row)
+            if len(batch) >= batch_size:
+                yield batch
+                batch = []
+        if batch:
+            yield batch
 
 
 def weighted_mean(values: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
     return (values * weights).sum() / weights.sum().clamp_min(1e-8)
 
 
-def train_from_rollouts(args) -> None:
-    rows = load_jsonl(args.rollout_path)
-    if args.train_window and args.train_window > 0:
-        rows = rows[-args.train_window :]
-    rows = [
-        row
-        for row in rows
-        if row.get("action_features")
-        and row.get("state_features")
-        and len(row["state_features"]) == STATE_FEATURE_SIZE
-        and all(len(features) == ACTION_FEATURE_SIZE for features in row["action_features"])
-    ]
-    if not rows:
+def train_from_rollouts(args, *, iteration: int) -> None:
+    offsets, row_stats = collect_training_offsets(args)
+    if not offsets:
         print("No rollout rows available for PPO update.")
-        return
-    rows, row_stats = prepare_rollout_rows(args, rows)
-    if not rows:
-        print("No rollout rows available after simulator/weight filters.")
+        append_training_event(
+            args,
+            "ppo_skipped",
+            iteration=iteration,
+            reason="no_rows",
+            rollout_path=str(args.rollout_path),
+            window_rows=int(row_stats.get("window_rows", 0)),
+            invalid_rows=int(row_stats.get("invalid_rows", 0)),
+            filtered_fallback=int(row_stats.get("filtered_fallback", 0)),
+        )
         return
 
     device = torch.device(args.device)
@@ -458,19 +585,38 @@ def train_from_rollouts(args) -> None:
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     model.train()
     print(
-        f"Training samples: {len(rows)} "
+        f"Training samples: {len(offsets)} "
+        f"window_rows={int(row_stats['window_rows'])} "
         f"effective_weight={row_stats['effective_weight']:.1f} "
         f"forced={int(row_stats['forced'])} repaired={int(row_stats['repaired'])} "
         f"real_sim={int(row_stats['real_simulated'])} "
         f"fallback_sim={int(row_stats['fallback_simulated'])} "
-        f"sim_error_rows={int(row_stats['sim_error_rows'])}"
+        f"sim_error_rows={int(row_stats['sim_error_rows'])} "
+        f"invalid_rows={int(row_stats['invalid_rows'])} "
+        f"filtered_fallback={int(row_stats['filtered_fallback'])} "
+        f"{format_memory()}"
+    )
+    append_training_event(
+        args,
+        "ppo_start",
+        iteration=iteration,
+        samples=len(offsets),
+        window_rows=int(row_stats["window_rows"]),
+        effective_weight=round(row_stats["effective_weight"], 3),
+        forced=int(row_stats["forced"]),
+        repaired=int(row_stats["repaired"]),
+        real_sim=int(row_stats["real_simulated"]),
+        fallback_sim=int(row_stats["fallback_simulated"]),
+        sim_error_rows=int(row_stats["sim_error_rows"]),
+        invalid_rows=int(row_stats["invalid_rows"]),
+        filtered_fallback=int(row_stats["filtered_fallback"]),
     )
 
     for epoch in range(1, args.epochs + 1):
         start = time.time()
         totals = {"loss": 0.0, "ppo": 0.0, "value": 0.0, "mcts_ce": 0.0, "entropy": 0.0}
         seen = 0
-        for batch_rows in make_batches(rows, args.batch_size, shuffle=True):
+        for batch_rows in iter_prepared_batches(args, offsets, args.batch_size, shuffle=True):
             batch = collate_rollouts(batch_rows)
             states = batch["states"].to(device)
             actions = batch["actions"].to(device)
@@ -515,22 +661,63 @@ def train_from_rollouts(args) -> None:
             totals["mcts_ce"] += float(mcts_ce.detach().cpu()) * count
             totals["entropy"] += float(entropy.detach().cpu()) * count
             seen += count
+            del batch, states, actions, mask, selected, visit_probs, old_logprob
+            del old_value, value_targets, sample_weights, logits, values
+            del log_probs, probs, new_logprob, advantages, ratio, clipped
+            del ppo_loss, value_loss, mcts_ce, entropy, loss
 
         elapsed = time.time() - start
+        if seen <= 0:
+            print("No rollout rows were yielded during PPO epoch.")
+            append_training_event(
+                args,
+                "ppo_epoch_skipped",
+                iteration=iteration,
+                epoch=epoch,
+                reason="no_batches",
+            )
+            return
+        epoch_metrics = {
+            "loss": totals["loss"] / seen,
+            "ppo": totals["ppo"] / seen,
+            "value": totals["value"] / seen,
+            "mcts_ce": totals["mcts_ce"] / seen,
+            "entropy": totals["entropy"] / seen,
+        }
         print(
             f"ppo_epoch={epoch:03d} "
-            f"loss={totals['loss']/seen:.4f} "
-            f"ppo={totals['ppo']/seen:.4f} "
-            f"value={totals['value']/seen:.4f} "
-            f"mcts_ce={totals['mcts_ce']/seen:.4f} "
-            f"entropy={totals['entropy']/seen:.4f} "
-            f"time={elapsed:.1f}s",
+            f"loss={epoch_metrics['loss']:.4f} "
+            f"ppo={epoch_metrics['ppo']:.4f} "
+            f"value={epoch_metrics['value']:.4f} "
+            f"mcts_ce={epoch_metrics['mcts_ce']:.4f} "
+            f"entropy={epoch_metrics['entropy']:.4f} "
+            f"time={elapsed:.1f}s "
+            f"{format_memory()}",
             flush=True,
         )
+        append_training_event(
+            args,
+            "ppo_epoch",
+            iteration=iteration,
+            epoch=epoch,
+            samples=seen,
+            elapsed_sec=round(elapsed, 3),
+            **{key: round(value, 6) for key, value in epoch_metrics.items()},
+        )
+        gc.collect()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    save_checkpoint(args.output_dir / "best.pt", model, extra={"trained_rows": len(rows)})
+    save_checkpoint(args.output_dir / "best.pt", model, extra={"trained_rows": len(offsets)})
     print(f"Saved AlphaZero MCTS+PPO checkpoint to {args.output_dir}")
+    append_training_event(
+        args,
+        "checkpoint_saved",
+        iteration=iteration,
+        output_dir=str(args.output_dir),
+        trained_rows=len(offsets),
+    )
+    del model, optimizer
+    gc.collect()
 
 
 async def main_async(args) -> None:
@@ -539,8 +726,15 @@ async def main_async(args) -> None:
         args.opponent_for_iteration = opponent_kind
         print(f"\n=== AlphaZero iteration {iteration}/{args.iterations} ===")
         print(f"Curriculum opponent: {opponent_kind}")
+        append_training_event(
+            args,
+            "iteration_start",
+            iteration=iteration,
+            total_iterations=args.iterations,
+            opponent=opponent_kind,
+        )
         if args.rollout_source == "offline":
-            collect_offline_rollouts(
+            collected = collect_offline_rollouts(
                 args,
                 iteration=iteration,
                 append_jsonl=append_jsonl,
@@ -548,8 +742,22 @@ async def main_async(args) -> None:
                 compact_diagnostic=compact_simulator_diagnostic,
             )
         else:
-            await collect_rollouts(args, iteration)
-        train_from_rollouts(args)
+            collected = await collect_rollouts(args, iteration)
+        append_training_event(
+            args,
+            "rollout_collected",
+            iteration=iteration,
+            opponent=opponent_kind,
+            decisions=collected,
+            rollout_path=str(args.rollout_path),
+        )
+        train_from_rollouts(args, iteration=iteration)
+        append_training_event(
+            args,
+            "iteration_finished",
+            iteration=iteration,
+            opponent=opponent_kind,
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -606,6 +814,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=Path("checkpoints/alphazero_mcts_ppo"))
     parser.add_argument("--rollout-path", type=Path, default=Path("data/alphazero/rollouts.jsonl"))
     parser.add_argument("--train-window", type=int, default=5000)
+    parser.add_argument(
+        "--training-log-path",
+        type=Path,
+        default=Path("logs/alphazero_train_events.jsonl"),
+        help="JSONL log for iteration, PPO, checkpoint and memory events.",
+    )
     parser.add_argument("--offline-max-turns", type=int, default=60)
     parser.add_argument("--offline-seed", type=int, default=7)
     parser.add_argument(
@@ -627,7 +841,29 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    asyncio.run(main_async(args))
+    append_training_event(
+        args,
+        "run_start",
+        rollout_source=args.rollout_source,
+        iterations=args.iterations,
+        self_play_games=args.self_play_games,
+        train_window=args.train_window,
+        batch_size=args.batch_size,
+        epochs=args.epochs,
+        rollout_path=str(args.rollout_path),
+        output_dir=str(args.output_dir),
+    )
+    try:
+        asyncio.run(main_async(args))
+    except BaseException as exc:
+        append_training_event(
+            args,
+            "run_failed",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise
+    append_training_event(args, "run_finished")
     return 0
 
 
