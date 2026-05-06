@@ -1,0 +1,67 @@
+Eternatus @ Power Herb
+Ability: Pressure
+Level: 50
+Tera Type: Fairy
+EVs: 252 HP / 4 Def / 252 SpD
+Calm Nature
+- Dynamax Cannon
+- Sludge Bomb
+- Meteor Beam
+- Recover
+
+Calyrex-Shadow @ Choice Specs
+Ability: As One (Spectrier)
+Level: 50
+Tera Type: Normal
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Astral Barrage
+- Psyshock
+- Pollen Puff
+- Trick Room
+
+Hatterene @ Mental Herb
+Ability: Magic Bounce
+Level: 50
+Tera Type: Water
+EVs: 252 HP / 252 SpA / 4 SpD
+Quiet Nature
+IVs: 0 Spe
+- Dazzling Gleam
+- Psyshock
+- Trick Room
+- Helping Hand
+
+Amoonguss @ Sitrus Berry
+Ability: Regenerator
+Level: 50
+Tera Type: Water
+EVs: 236 HP / 116 Def / 156 SpD
+Bold Nature
+- Spore
+- Pollen Puff
+- Rage Powder
+- Protect
+
+Indeedee-F @ Rocky Helmet
+Ability: Psychic Surge
+Level: 50
+Tera Type: Fairy
+EVs: 252 HP / 156 Def / 100 SpD
+Bold Nature
+- Follow Me
+- Trick Room
+- Helping Hand
+- Dazzling Gleam
+
+Iron Hands @ Assault Vest
+Ability: Quark Drive
+Level: 50
+Tera Type: Bug
+EVs: 252 HP / 252 Atk / 4 SpD
+Brave Nature
+IVs: 0 Spe
+- Fake Out
+- Drain Punch
+- Wild Charge
+- Heavy Slam

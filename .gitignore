@@ -23,6 +23,12 @@ checkpoints/
 # Logs de entrenamiento
 logs/
 
+# Reportes generados (HTML + PNG por run)
+reports/
+
+# Claude Code local config / worktrees
+.claude/
+
 # Replays descargados y datasets derivados (pueden crecer mucho)
 data/replays/
 
