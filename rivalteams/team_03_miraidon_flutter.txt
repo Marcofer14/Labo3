@@ -1,0 +1,65 @@
+Miraidon @ Choice Specs
+Ability: Hadron Engine
+Level: 50
+Tera Type: Electric
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Electro Drift
+- Draco Meteor
+- Dazzling Gleam
+- Volt Switch
+
+Flutter Mane @ Booster Energy
+Ability: Protosynthesis
+Level: 50
+Tera Type: Fairy
+EVs: 12 HP / 4 Def / 236 SpA / 4 SpD / 252 Spe
+Timid Nature
+- Moonblast
+- Shadow Ball
+- Dazzling Gleam
+- Protect
+
+Iron Hands @ Sitrus Berry
+Ability: Quark Drive
+Level: 50
+Tera Type: Grass
+EVs: 252 HP / 156 Atk / 4 Def / 4 SpD / 92 Spe
+Adamant Nature
+- Fake Out
+- Drain Punch
+- Wild Charge
+- Belly Drum
+
+Tornadus @ Covert Cloak
+Ability: Prankster
+Level: 50
+Tera Type: Flying
+EVs: 252 HP / 4 Def / 252 Spe
+Timid Nature
+- Bleakwind Storm
+- Tailwind
+- Rain Dance
+- Taunt
+
+Amoonguss @ Rocky Helmet
+Ability: Regenerator
+Level: 50
+Tera Type: Water
+EVs: 236 HP / 116 Def / 156 SpD
+Bold Nature
+- Spore
+- Pollen Puff
+- Rage Powder
+- Protect
+
+Iron Bundle @ Choice Scarf
+Ability: Quark Drive
+Level: 50
+Tera Type: Ice
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Hydro Pump
+- Freeze-Dry
+- Icy Wind
+- U-turn

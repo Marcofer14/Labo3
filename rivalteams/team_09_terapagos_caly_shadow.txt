@@ -1,0 +1,65 @@
+Terapagos @ Leftovers
+Ability: Tera Shift
+Level: 50
+Tera Type: Stellar
+EVs: 252 HP / 100 Def / 4 SpA / 100 SpD / 52 Spe
+Modest Nature
+- Tera Starstorm
+- Earth Power
+- Calm Mind
+- Protect
+
+Calyrex-Shadow @ Choice Specs
+Ability: As One (Spectrier)
+Level: 50
+Tera Type: Normal
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Astral Barrage
+- Psyshock
+- Nasty Plot
+- Protect
+
+Whimsicott @ Focus Sash
+Ability: Prankster
+Level: 50
+Tera Type: Steel
+EVs: 252 HP / 4 Def / 252 Spe
+Timid Nature
+- Moonblast
+- Tailwind
+- Helping Hand
+- Encore
+
+Incineroar @ Safety Goggles
+Ability: Intimidate
+Level: 50
+Tera Type: Ghost
+EVs: 244 HP / 4 Atk / 156 Def / 4 SpD / 100 Spe
+Impish Nature
+- Fake Out
+- Knock Off
+- Parting Shot
+- Will-O-Wisp
+
+Urshifu-Rapid-Strike @ Mystic Water
+Ability: Unseen Fist
+Level: 50
+Tera Type: Water
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Surging Strikes
+- Close Combat
+- Aqua Jet
+- Detect
+
+Iron Hands @ Assault Vest
+Ability: Quark Drive
+Level: 50
+Tera Type: Grass
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Fake Out
+- Drain Punch
+- Wild Charge
+- Heavy Slam

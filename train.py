@@ -1,401 +1,479 @@
 """
 train.py
 ─────────────────────────────────────────────────────────────────
-Script principal de entrenamiento del VGC Bot.
+Entrenamiento del VGC Bot con curriculum learning + self-play league.
 
-ARQUITECTURA:
-  VGCEnv (DoublesEnv)
-    └── implementa calc_reward() y embed_battle() para VGC dobles
-  SingleAgentWrapper(VGCEnv, oponente)
-    └── convierte el env paralelo PettingZoo → Gymnasium single-agent
-  FlatObsWrapper(SingleAgentWrapper)
-    └── extrae solo el array del dict de observación para PPO estándar
-  PPO (stable-baselines3)
-    └── entrena la política sobre el env resultante
+Pipeline:
+  · RecurrentPPO (sb3-contrib) con LSTM → recuerda moves del rival y Tera
+  · Hidden [256] · ReLU · LSTM 128
+  · 4 envs paralelos × n_steps=1024 → buffer 4096, batch 256, 4 epochs
+  · LR schedule lineal 3e-4 → 1e-5
+  · Curriculum por plateau de loss (no por timesteps fijos)
+  · Layer C ramp-up gradual al entrar a stage 3
+  · Snapshots automáticos al league desde stage 3 con eviction por win-rate
+  · Stage 4 transición: rebuild de envs con LeagueOpponent
+  · Round-robin entre miembros del league al cierre (opcional)
+  · 10 equipos rivales rotando + métricas detalladas + reporte HTML
 
-FLUJO DE ENTRENAMIENTO:
-  Fase 1 - Self-play contra RandomPlayer (oponente aleatorio)
-    → El bot aprende rápidamente qué acciones tienen sentido
-  Fase 2 - Self-play contra MaxBasePowerPlayer (greedy)
-    → El bot aprende a superar estrategias simples
-  Fase 3 - Ladder real / evaluación
-    → Despliegue contra humanos
-
-USO:
-  # Verificar módulos sin conectar a Showdown:
+Uso:
   python train.py --dry-run
-
-  # Entrenar desde cero (necesita servidor Showdown en localhost:8000):
   python train.py
-
-  # Continuar desde checkpoint:
-  python train.py --resume checkpoints/vgc_ppo_100000.zip
-
-  # Cambiar oponente:
-  python train.py --opponent greedy
+  python train.py --algorithm maskable_ppo
+  python train.py --resume checkpoints/vgc_t500000.zip
+  python train.py --no-tournament      # saltar round-robin final
 """
+
+from __future__ import annotations
 
 import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Optional
-from src.format_resolver import resolve_format
+from typing import Optional, Callable
 
-# ── Verificación de dependencias ──────────────────────────────────
 
 def check_dependencies() -> bool:
     missing = []
-    for pkg, import_name in [
+    deps = [
         ("numpy",             "numpy"),
         ("gymnasium",         "gymnasium"),
         ("stable-baselines3", "stable_baselines3"),
+        ("sb3-contrib",       "sb3_contrib"),
         ("torch",             "torch"),
         ("poke-env",          "poke_env"),
-    ]:
+        ("matplotlib",        "matplotlib"),
+    ]
+    for pkg, mod in deps:
         try:
-            __import__(import_name)
+            __import__(mod)
         except ImportError:
             missing.append(pkg)
-
     if missing:
-        print(f"\n⚠  Dependencias faltantes: {', '.join(missing)}")
-        print("   Instalar con: pip install " + " ".join(missing))
+        print(f"\n[!] Dependencias faltantes: {', '.join(missing)}")
+        print("   Instalar: pip install " + " ".join(missing))
         return False
     return True
 
 
-# ── Dry-run: verifica todos los módulos sin Showdown ─────────────
+# ─────────────────────────────────────────────────────────────────
+# DRY RUN
+# ─────────────────────────────────────────────────────────────────
 
 def dry_run():
-    print("═" * 60)
-    print("  VGC Bot — Dry Run (verificación de módulos)")
-    print("═" * 60)
+    print("=" * 60)
+    print("  VGC Bot - Dry Run (verificación de módulos)")
+    print("=" * 60)
 
-    # [1/5] utils
-    print("\n[1/5] Verificando utils...")
-    from src.utils import load_all_data, parse_team, calc_all_stats, get_pokemon
+    from src.utils import load_all_data, parse_team, calc_all_stats
+    from src.rewards import RewardConfig
+    from src.rewards.action_decoder import decode_action
+    from src.rival_teams import load_rival_pool
+    from src.training import (
+        TrainingConfig, CurriculumScheduler, SelfPlayLeague,
+        LeagueOpponent, action_int_to_order, run_tournament,
+    )
 
     team_path = Path(__file__).resolve().parent / "team.txt"
-    data      = load_all_data()
-    team      = parse_team(team_path)
-
-    print(f"  ✓ {len(data['pokemon'])} Pokémon | "
-          f"{len(data['moves'])} movimientos | "
-          f"{len(data['items'])} items")
+    data = load_all_data()
+    team = parse_team(team_path)
+    print(f"\n[1/8] utils + team")
+    print(f"  ✓ {len(data['pokemon'])} Pokemon | {len(data['moves'])} moves")
     print(f"  ✓ Equipo: {[p['name'] for p in team]}")
 
-    for p in team:
-        stats = calc_all_stats(p, data["pokemon"])
-        print(f"     {p['name']:25}  "
-              f"HP={stats['hp']}  |  "
-              f"SpA={stats['special-attack']}  |  "
-              f"Spe={stats['speed']}")
+    print(f"\n[2/8] reward framework")
+    for s in (1, 2, 3, 4, 5):
+        cfg = getattr(RewardConfig, f'stage_{s}')()
+        flags = [k for k in ('enable_layer_a', 'enable_layer_b', 'enable_b_extra',
+                             'enable_layer_c', 'enable_layer_d') if getattr(cfg, k)]
+        print(f"  ✓ stage {s}: {flags}")
 
-    # [2/5] damage_calc
-    print("\n[2/5] Verificando damage_calc...")
-    from src.damage_calc import calc_damage, calc_all_matchups, BattleConditions
+    print(f"\n[3/8] action decoder + action-to-order helper")
+    for a in [0, 1, 7, 11, 87, 106]:
+        print(f"  {a:3d} → {decode_action(a)}")
+    print(f"  ✓ action_int_to_order importado")
 
-    kyogre      = team[0]
-    k_stats     = calc_all_stats(kyogre, data["pokemon"])
-    k_info      = get_pokemon("kyogre", data["pokemon"])
-    k_types     = k_info["types"] if k_info else ["water"]
+    print(f"\n[4/8] rivalteams pool")
+    pool = load_rival_pool(Path(__file__).resolve().parent / "rivalteams")
+    print(f"  ✓ {pool.num_teams} equipos cargados")
 
-    calyrex     = team[1]
-    c_stats     = calc_all_stats(calyrex, data["pokemon"])
-    c_info      = get_pokemon("calyrex-shadow", data["pokemon"]) or \
-                  get_pokemon("calyrex", data["pokemon"])
-    c_types     = c_info["types"] if c_info else ["psychic", "ghost"]
+    print(f"\n[5/8] training config")
+    tcfg = TrainingConfig()
+    print(f"  ✓ algo={tcfg.algorithm}  arch={tcfg.net_arch}  act={tcfg.activation}")
+    print(f"  ✓ envs={tcfg.n_envs} steps={tcfg.n_steps} batch={tcfg.batch_size} epochs={tcfg.n_epochs}")
+    print(f"  ✓ buffer={tcfg.rollout_buffer_size():,} ({tcfg.minibatches_per_epoch()} mb/epoch)")
+    print(f"  ✓ LSTM h={tcfg.lstm_hidden_size} layers={tcfg.lstm_layers}")
+    print(f"  ✓ plateau win={tcfg.plateau_window} eps={tcfg.plateau_eps}")
 
-    # Test normal (100% HP)
-    result_full = calc_damage(
-        attacker_stats   = k_stats,
-        attacker_types   = k_types,
-        attacker_ability = "drizzle",
-        attacker_item    = "mystic-water",
-        attacker_name    = "kyogre",
-        move             = data["moves"]["water-spout"],
-        defender_stats   = c_stats,
-        defender_types   = c_types,
-        defender_ability = "",
-        defender_item    = None,
-        defender_name    = "calyrex-shadow",
-        type_chart       = data["type_chart"],
-        conditions       = BattleConditions(weather="rain"),
-        attacker_hp_pct  = 1.0,
-    )
-    print(f"  ✓ Water Spout @100% HP → {result_full.min_pct*100:.1f}%–{result_full.max_pct*100:.1f}%")
+    print(f"\n[6/8] curriculum scheduler")
+    sched = CurriculumScheduler(tcfg)
+    sched.start()
+    print(f"  ✓ scheduler iniciado, stage={sched.current_stage}")
 
-    # Test con HP bajo (25%)
-    result_low = calc_damage(
-        attacker_stats   = k_stats,
-        attacker_types   = k_types,
-        attacker_ability = "drizzle",
-        attacker_item    = "mystic-water",
-        attacker_name    = "kyogre",
-        move             = data["moves"]["water-spout"],
-        defender_stats   = c_stats,
-        defender_types   = c_types,
-        defender_ability = "",
-        defender_item    = None,
-        defender_name    = "calyrex-shadow",
-        type_chart       = data["type_chart"],
-        conditions       = BattleConditions(weather="rain"),
-        attacker_hp_pct  = 0.25,
-    )
-    print(f"  ✓ Water Spout @25% HP  → {result_low.min_pct*100:.1f}%–{result_low.max_pct*100:.1f}%  "
-          f"(escalado correcto: ~{result_full.min_pct*0.25*100:.1f}%)")
+    print(f"\n[7/8] self-play league")
+    league = SelfPlayLeague(max_size=tcfg.league_max_size,
+                            eviction_kind=tcfg.league_eviction)
+    print(f"  ✓ league: max={league.max_size} eviction={league.eviction_kind}")
 
-    defenders = []
-    for p in team[1:]:
-        s = calc_all_stats(p, data["pokemon"])
-        pi = get_pokemon(p["name"], data["pokemon"])
-        t = pi["types"] if pi else []
-        defenders.append((p["name"], s, t))
+    print(f"\n[8/8] LeagueOpponent + tournament")
+    print(f"  ✓ LeagueOpponent importable")
+    print(f"  ✓ run_tournament importable")
 
-    results = calc_all_matchups(
-        kyogre, k_stats, k_types, defenders,
-        data["moves"], data["type_chart"],
-        BattleConditions(weather="rain"),
-    )
-    print(f"  ✓ {len(results)} matchups calculados para Kyogre")
-
-    # [3/5] state_encoder
-    print("\n[3/5] Verificando state_encoder...")
-    from src.state_encoder import StateEncoder
-
-    encoder = StateEncoder(data["type_chart"], data["moves"])
-    obs = encoder.encode_manual(
-        own_field = [{
-            "hp_pct": 1.0, "types": k_types, "stats": k_stats,
-            "stat_mods": {}, "status": None,
-            "moves": kyogre["moves"], "tera_available": True,
-            "tera_type": "grass", "item": "mystic-water",
-        }],
-        rival_field = [{
-            "hp_pct": 0.7, "types": ["fire"], "stats": {}, "stat_mods": {},
-            "status": None, "moves": [], "tera_available": True,
-            "tera_type": None, "item": None,
-        }],
-        benched_own = [{"hp_pct": 1.0, "types": ["psychic", "ghost"], "status": None}],
-        conditions  = {"weather": "rain", "terrain": "grassy", "trick_room": False, "turn": 1},
-    )
-    print(f"  ✓ Observation vector: shape={obs.shape}  |  "
-          f"min={obs.min():.3f}  max={obs.max():.3f}")
-
-    # Verificar tamaño con campo vacío (padding)
-    obs_empty = encoder.encode_manual([], [], [], {})
-    assert obs.shape == obs_empty.shape, (
-        f"Error: tamaño inconsistente con padding — "
-        f"{obs.shape} vs {obs_empty.shape}"
-    )
-    print(f"  ✓ Padding consistente: shape={obs_empty.shape}")
-
-    # [4/5] vgc_env (sin conexión a Showdown)
-    print("\n[4/5] Verificando vgc_env...")
-    from src.vgc_env import VGCEnv, FlatObsWrapper
-    from poke_env.environment import DoublesEnv
-
-    action_size = DoublesEnv.get_action_space_size(9)
-    print(f"  ✓ action_space_size (Gen 9): {action_size}")
-    print(f"  ✓ MultiDiscrete([{action_size}, {action_size}])")
-    print(f"  ✓ observation_size: {obs.shape[0]}")
-    print(f"  ✓ VGCEnv importado correctamente")
-    print(f"  ℹ Nota: la instanciación completa requiere servidor Showdown")
-
-    # [5/5] train config
-    print("\n[5/5] Verificando configuración de entrenamiento...")
-    try:
-        from stable_baselines3 import PPO
-        print(f"  ✓ stable-baselines3 disponible")
-    except ImportError:
-        print(f"  ⚠ stable-baselines3 no instalado")
-        print(f"    Instalar: pip install stable-baselines3[extra] torch")
-
-    print("\n" + "═" * 60)
-    print("  ✓ Todos los módulos verificados correctamente.")
-    print("  Para entrenar: levantá el servidor Showdown y ejecutá:")
-    print("    python train.py")
-    print("═" * 60)
+    print("\n" + "=" * 60)
+    print("  ✓ Todos los módulos verificados.")
+    print("  Próximo paso: python prepare.py  (pre-flight)")
+    print("=" * 60)
 
 
-# ── Entrenamiento principal ───────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# TRAIN
+# ─────────────────────────────────────────────────────────────────
 
 def train(
-    resume_path: Optional[str] = None,
-    opponent_type: str = "random",
-    server: Optional[str] = None,
-    battle_format: Optional[str] = None,
+    resume_path:     Optional[str]   = None,
+    server:          Optional[str]   = None,
+    battle_format:   Optional[str]   = None,
+    algorithm:       Optional[str]   = None,
+    n_envs:          Optional[int]   = None,
+    total_timesteps: Optional[int]   = None,
+    skip_tournament: bool            = False,
 ):
-    """
-    Lanza el entrenamiento del agente con PPO.
-
-    Requiere un servidor local de Pokémon Showdown.
-    La URL del servidor se resuelve en este orden:
-      1. Argumento --server (ej: localhost:8000)
-      2. Variable de entorno SHOWDOWN_SERVER
-      3. Default: localhost:8000
-
-    Con Docker Compose el servidor se llama "showdown:8000" dentro
-    de la red interna de Docker (la env var SHOWDOWN_SERVER ya viene
-    configurada en docker-compose.yml).
-    """
     if not check_dependencies():
         sys.exit(1)
 
-    from stable_baselines3 import PPO
-    from stable_baselines3.common.callbacks import CheckpointCallback
-    from poke_env.environment import SingleAgentWrapper
-    from poke_env import RandomPlayer, MaxBasePowerPlayer
-    from poke_env.ps_client import ServerConfiguration
+    from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
+    from stable_baselines3.common.vec_env  import DummyVecEnv
+    from poke_env.environment              import SingleAgentWrapper, DoublesEnv
+    from poke_env                          import RandomPlayer, MaxBasePowerPlayer
+    from poke_env.ps_client                import ServerConfiguration
 
-    from src.vgc_env import VGCEnv, FlatObsWrapper
+    from src.format_resolver import resolve_format
+    from src.vgc_env         import VGCEnv, FlatObsWrapper
+    from src.rival_teams     import load_rival_pool
+    from src.training        import (
+        TrainingConfig,
+        CurriculumScheduler,
+        SelfPlayLeague,
+        LossPlateauCallback,
+        RewardBreakdownCallback,
+        ActivationStatsCallback,
+        WinRateCallback,
+        PhaseLogCallback,
+        SnapshotLeagueCallback,
+        LeagueResultCallback,
+        LeagueOpponent,
+        run_tournament,
+        generate_final_report,
+    )
+    from src.training.policy import (
+        ActivationRecorder,
+        build_policy_kwargs,
+        import_recurrent_ppo,
+        import_maskable_ppo,
+    )
 
-    team_path   = Path(__file__).resolve().parent / "team.txt"
-    checkpoints = Path(__file__).resolve().parent / "checkpoints"
-    logs_dir    = Path(__file__).resolve().parent / "logs"
-    checkpoints.mkdir(exist_ok=True)
-    logs_dir.mkdir(exist_ok=True)
+    # ── Config ───────────────────────────────────────────────────
+    tcfg = TrainingConfig()
+    if algorithm:        tcfg.algorithm       = algorithm
+    if n_envs:           tcfg.n_envs          = n_envs
+    if total_timesteps:  tcfg.total_timesteps = total_timesteps
 
-    # Leer el equipo como string
-    with open(team_path, encoding="utf-8") as f:
-        team_str = f.read()
+    base_dir   = Path(__file__).resolve().parent
+    team_path  = base_dir / "team.txt"
+    rivals_dir = base_dir / tcfg.rivalteams_dir
+    ckpt_dir   = base_dir / tcfg.checkpoint_dir
+    log_dir    = base_dir / tcfg.log_dir
+    league_dir = ckpt_dir / "league"
+    for d in (ckpt_dir, log_dir, league_dir):
+        d.mkdir(parents=True, exist_ok=True)
 
-    # Resolver host del servidor: arg > env var > default
     server_host = server or os.environ.get("SHOWDOWN_SERVER", "localhost:8000")
+    fmt = resolve_format(battle_format)
 
-    VGC_FORMAT = resolve_format(battle_format)
+    print("=" * 60)
+    print(f"  VGC Bot - Curriculum + Self-Play League")
+    print(f"  Algoritmo: {tcfg.algorithm}")
+    print(f"  Formato:   {fmt}")
+    print(f"  Servidor:  ws://{server_host}/showdown/websocket")
+    print(f"  Envs:      {tcfg.n_envs}  · n_steps:{tcfg.n_steps}  · batch:{tcfg.batch_size}")
+    print("=" * 60)
 
-    print("═" * 60)
-    print("  VGC Bot — Entrenamiento RL (PPO)")
-    print(f"  Formato:  {VGC_FORMAT}")
-    print(f"  Oponente: {opponent_type}")
-    print(f"  Servidor: ws://{server_host}/showdown/websocket")
-    print("═" * 60)
-
-    # ── Configurar conexión al servidor ──────────────────────────
-    # Showdown usa WebSocket en /showdown/websocket
     server_cfg = ServerConfiguration(
         f"ws://{server_host}/showdown/websocket",
         "https://play.pokemonshowdown.com/action.php?",
     )
 
-    env = VGCEnv(
-        team_path      = team_path,
-        battle_format  = VGC_FORMAT,
-        server_configuration = server_cfg,
-        start_listening      = True,
-        choose_on_teampreview = True,
-    )
+    rival_pool = load_rival_pool(rivals_dir, seed=tcfg.seed)
+    print(f"  ✓ Cargados {rival_pool.num_teams} equipos rivales\n")
 
-    # ── Crear el oponente ─────────────────────────────────────────
-    if opponent_type == "random":
-        opponent = RandomPlayer(
-            battle_format        = VGC_FORMAT,
-            team                 = team_str,
-            server_configuration = server_cfg,
-        )
-    elif opponent_type == "greedy":
-        opponent = MaxBasePowerPlayer(
-            battle_format        = VGC_FORMAT,
-            team                 = team_str,
-            server_configuration = server_cfg,
-        )
+    # ── State compartido para rotación de oponentes ──────────────
+    # Cada env guarda qué snapshot_id de league está usando como opp
+    env_opp_snapshot: dict[int, int] = {i: -1 for i in range(tcfg.n_envs)}
+
+    def opponent_provider(env_idx: int) -> int:
+        return env_opp_snapshot.get(env_idx, -1)
+
+    # ── Env factories ────────────────────────────────────────────
+    def make_heuristic_env(rank: int):
+        """Stage 1-3: oponente heurístico (Random)."""
+        def _init():
+            env = VGCEnv(
+                team_path             = team_path,
+                battle_format         = fmt,
+                server_configuration  = server_cfg,
+                start_listening       = True,
+                choose_on_teampreview = True,
+            )
+            opp = RandomPlayer(
+                battle_format        = fmt,
+                team                 = rival_pool,
+                server_configuration = server_cfg,
+            )
+            return FlatObsWrapper(SingleAgentWrapper(env, opp))
+        return _init
+
+    def make_league_env(rank: int, model, encoder_env_factory: Callable):
+        """Stage 4+: oponente del league (LeagueOpponent con snapshot)."""
+        def _init():
+            env = VGCEnv(
+                team_path             = team_path,
+                battle_format         = fmt,
+                server_configuration  = server_cfg,
+                start_listening       = True,
+                choose_on_teampreview = True,
+            )
+            # Encodificador proxy (no se conecta) que LeagueOpponent reusa
+            enc_env = encoder_env_factory()
+
+            # Inicialmente con un snapshot del league sampleado o RandomPlayer
+            entry = league.sample_pfsp() if not league.is_empty() else None
+            if entry is not None:
+                from sb3_contrib import RecurrentPPO, MaskablePPO
+                ModelCls = RecurrentPPO if tcfg.algorithm == "recurrent_ppo" else MaskablePPO
+                snapshot_model = ModelCls.load(entry.path)
+                opp = LeagueOpponent(
+                    model                = snapshot_model,
+                    encoder_env          = enc_env,
+                    algorithm            = tcfg.algorithm,
+                    snapshot_id          = entry.snapshot_id,
+                    battle_format        = fmt,
+                    team                 = rival_pool,
+                    server_configuration = server_cfg,
+                )
+                env_opp_snapshot[rank] = entry.snapshot_id
+            else:
+                opp = RandomPlayer(
+                    battle_format        = fmt,
+                    team                 = rival_pool,
+                    server_configuration = server_cfg,
+                )
+                env_opp_snapshot[rank] = -1
+            return FlatObsWrapper(SingleAgentWrapper(env, opp))
+        return _init
+
+    def encoder_env_factory():
+        """Crea un VGCEnv 'proxy' sin start_listening para encoding."""
+        try:
+            return VGCEnv(
+                team_path            = team_path,
+                battle_format        = fmt,
+                server_configuration = server_cfg,
+                start_listening      = False,
+            )
+        except TypeError:
+            # Algunas versiones de poke-env no permiten start_listening=False
+            return VGCEnv(
+                team_path            = team_path,
+                battle_format        = fmt,
+                server_configuration = server_cfg,
+            )
+
+    # ── Construcción inicial del VecEnv (heurístico) ─────────────
+    venv = DummyVecEnv([make_heuristic_env(i) for i in range(tcfg.n_envs)])
+
+    # ── Modelo ───────────────────────────────────────────────────
+    if tcfg.algorithm == "recurrent_ppo":
+        ModelCls, PolicyCls = import_recurrent_ppo()
+    elif tcfg.algorithm == "maskable_ppo":
+        ModelCls, PolicyCls = import_maskable_ppo()
     else:
-        raise ValueError(f"Oponente desconocido: {opponent_type}. Opciones: random, greedy")
-
-    # ── Wrappear para SB3 ─────────────────────────────────────────
-    # SingleAgentWrapper: paralelo PettingZoo → Gymnasium single-agent
-    # FlatObsWrapper:     dict obs {"observation", "action_mask"} → Box plano
-    gym_env = FlatObsWrapper(SingleAgentWrapper(env, opponent))
-
-    print(f"\n  observation_space: {gym_env.observation_space}")
-    print(f"  action_space:      {gym_env.action_space}")
-
-    # ── Configuración de PPO ──────────────────────────────────────
-    LEARNING_RATE   = 3e-4
-    N_STEPS         = 2048
-    BATCH_SIZE      = 64
-    N_EPOCHS        = 10
-    GAMMA           = 0.99
-    TOTAL_TIMESTEPS = 1_000_000
+        raise ValueError(f"Algoritmo desconocido: {tcfg.algorithm}")
 
     if resume_path:
         print(f"\n  Cargando checkpoint: {resume_path}")
-        model = PPO.load(resume_path, env=gym_env)
+        model = ModelCls.load(resume_path, env=venv)
     else:
-        model = PPO(
-            policy          = "MlpPolicy",
-            env             = gym_env,
-            learning_rate   = LEARNING_RATE,
-            n_steps         = N_STEPS,
-            batch_size      = BATCH_SIZE,
-            n_epochs        = N_EPOCHS,
-            gamma           = GAMMA,
+        model = ModelCls(
+            policy          = PolicyCls,
+            env             = venv,
+            learning_rate   = tcfg.linear_lr_schedule(),
+            n_steps         = tcfg.n_steps,
+            batch_size      = tcfg.batch_size,
+            n_epochs        = tcfg.n_epochs,
+            gamma           = tcfg.gamma,
+            gae_lambda      = tcfg.gae_lambda,
+            clip_range      = tcfg.clip_range,
+            ent_coef        = tcfg.ent_coef,
+            vf_coef         = tcfg.vf_coef,
+            max_grad_norm   = tcfg.max_grad_norm,
+            policy_kwargs   = build_policy_kwargs(tcfg, tcfg.algorithm),
+            tensorboard_log = str(log_dir),
             verbose         = 1,
-            tensorboard_log = str(logs_dir),
+            seed            = tcfg.seed,
         )
 
-    print(f"\n  Total timesteps:  {TOTAL_TIMESTEPS:,}")
-    print(f"  Checkpoints en:   {checkpoints}/")
-    print(f"  Logs TensorBoard: {logs_dir}/")
+    # ── Curriculum + League ──────────────────────────────────────
+    scheduler = CurriculumScheduler(tcfg)
+    scheduler.start(current_timestep=0)
 
-    # ── Callbacks ─────────────────────────────────────────────────
-    checkpoint_cb = CheckpointCallback(
-        save_freq   = 10_000,
-        save_path   = str(checkpoints),
-        name_prefix = "vgc_ppo",
+    league = SelfPlayLeague(
+        max_size      = tcfg.league_max_size,
+        eviction_kind = tcfg.league_eviction,
+        min_battles_for_eviction = tcfg.league_min_battles_for_eviction,
+        seed          = tcfg.seed,
     )
 
-    # ── Entrenar ──────────────────────────────────────────────────
-    print("\nIniciando entrenamiento...")
-    print("(Ver progreso en TensorBoard: tensorboard --logdir logs)\n")
+    def push_reward_config_to_envs(cfg):
+        for i in range(tcfg.n_envs):
+            try:
+                inner = venv.envs[i]
+                e = inner
+                while hasattr(e, "env") and not hasattr(e, "set_reward_config"):
+                    e = e.env
+                if hasattr(e, "set_reward_config"):
+                    e.set_reward_config(cfg)
+            except Exception as ex:
+                print(f"  [stage advance] env {i}: {ex}")
 
-    model.learn(
-        total_timesteps = TOTAL_TIMESTEPS,
-        callback        = checkpoint_cb,
-        progress_bar    = True,
+    def rebuild_envs_with_league():
+        """Stage 4 transition: rearma el VecEnv con LeagueOpponents."""
+        nonlocal venv
+        if league.is_empty():
+            print("  [stage4] league vacío, manteniendo opp heurístico")
+            return
+        try:
+            # Cierre limpio del VecEnv anterior
+            venv.close()
+        except Exception:
+            pass
+        venv = DummyVecEnv([
+            make_league_env(i, model, encoder_env_factory)
+            for i in range(tcfg.n_envs)
+        ])
+        model.set_env(venv)
+        print(f"  [stage4] envs reconstruidos con LeagueOpponent (pool={len(league)})")
+
+    def on_stage_advance(sched, new_stage: int):
+        cfg = sched.current_reward_config(model.num_timesteps)
+        push_reward_config_to_envs(cfg)
+        if new_stage == 4:
+            rebuild_envs_with_league()
+
+    # ── Callbacks ────────────────────────────────────────────────
+    activation_recorder = ActivationRecorder()
+
+    cb_loss      = LossPlateauCallback(scheduler, on_stage_advance, verbose=1)
+    cb_breakdown = RewardBreakdownCallback(scheduler)
+    cb_activ     = ActivationStatsCallback(activation_recorder, log_every=tcfg.activation_log_every)
+    cb_winrate   = WinRateCallback(window=tcfg.win_rate_window)
+    cb_phase     = PhaseLogCallback(scheduler)
+    cb_snapshot  = SnapshotLeagueCallback(
+        league=league, scheduler=scheduler,
+        every=tcfg.league_snapshot_every,
+        snapshot_dir=league_dir,
+        min_stage=3,
+        verbose=1,
+    )
+    cb_lresult   = LeagueResultCallback(league=league, opponent_provider=opponent_provider)
+    cb_ckpt      = CheckpointCallback(
+        save_freq   = tcfg.checkpoint_every // max(1, tcfg.n_envs),
+        save_path   = str(ckpt_dir),
+        name_prefix = "vgc",
     )
 
-    # Guardar modelo final
-    final_path = checkpoints / "vgc_ppo_final"
-    model.save(str(final_path))
-    print(f"\n✓ Modelo final guardado en: {final_path}.zip")
+    callbacks = CallbackList([
+        cb_loss, cb_breakdown, cb_activ, cb_winrate, cb_phase,
+        cb_snapshot, cb_lresult, cb_ckpt,
+    ])
+
+    # ── Entrenamiento ────────────────────────────────────────────
+    print(f"\n  Total timesteps: {tcfg.total_timesteps:,}")
+    print(f"  Iniciando entrenamiento...\n")
+
+    try:
+        model.learn(
+            total_timesteps = tcfg.total_timesteps,
+            callback        = callbacks,
+            progress_bar    = True,
+        )
+    except KeyboardInterrupt:
+        print("\n  [!] Entrenamiento interrumpido por usuario")
+    finally:
+        scheduler.finalize(model.num_timesteps)
+
+        final_path = ckpt_dir / "vgc_final"
+        model.save(str(final_path))
+        print(f"\n  ✓ Modelo final: {final_path}.zip")
+
+        # ── Tournament round-robin entre miembros del league ─────
+        if not skip_tournament and len(league) >= 2:
+            print(f"\n  Ejecutando round-robin entre {len(league)} miembros del league...")
+            try:
+                run_tournament(
+                    league              = league,
+                    encoder_env_factory = encoder_env_factory,
+                    server_cfg          = server_cfg,
+                    battle_format       = fmt,
+                    rival_pool          = rival_pool,
+                    algorithm           = tcfg.algorithm,
+                    n_battles_per_pair  = 5,
+                    verbose             = True,
+                )
+            except Exception as ex:
+                print(f"  [!] tournament falló: {ex}")
+
+        # ── Reporte final ────────────────────────────────────────
+        report_path = generate_final_report(
+            scheduler  = scheduler,
+            league     = league,
+            train_cfg  = tcfg,
+            output_dir = base_dir / tcfg.report_dir,
+            extra_meta = {
+                "algorithm":     tcfg.algorithm,
+                "team_size":     6,
+                "rival_pool":    rival_pool.num_teams,
+                "rival_yields":  rival_pool.yield_counts,
+            },
+        )
+        print(f"\n  ✓ Reporte: {report_path}/report.html")
 
 
-# ── Main ──────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="VGC Bot — Entrenamiento RL")
-    parser.add_argument(
-        "--dry-run", action="store_true",
-        help="Verificar módulos sin conectar a Showdown"
-    )
-    parser.add_argument(
-        "--format", type=str, default=None,
-        help="Formato de batalla. Si no se pasa, usa VGC_FORMAT o el default automático."
-    )
-    parser.add_argument(
-        "--resume", type=str, default=None,
-        help="Ruta a checkpoint .zip para continuar entrenamiento"
-    )
-    parser.add_argument(
-        "--opponent", type=str, default="random",
-        choices=["random", "greedy"],
-        help="Tipo de oponente: random (default) | greedy (MaxBasePower)"
-    )
-    parser.add_argument(
-        "--server", type=str, default=None,
-        help="URL del servidor Showdown (default: localhost:8000 o env SHOWDOWN_SERVER)"
-    )
+    parser = argparse.ArgumentParser(description="VGC Bot - Curriculum Training")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--format",  type=str, default=None)
+    parser.add_argument("--resume",  type=str, default=None)
+    parser.add_argument("--server",  type=str, default=None)
+    parser.add_argument("--algorithm", type=str, default=None,
+                        choices=["recurrent_ppo", "maskable_ppo"])
+    parser.add_argument("--n-envs",  type=int, default=None)
+    parser.add_argument("--total-timesteps", type=int, default=None)
+    parser.add_argument("--no-tournament", action="store_true",
+                        help="No correr round-robin del league al cierre")
     args = parser.parse_args()
 
     if args.dry_run:
         dry_run()
     else:
         train(
-            resume_path=args.resume,
-            opponent_type=args.opponent,
-            server=args.server,
-            battle_format=args.format,
+            resume_path     = args.resume,
+            server          = args.server,
+            battle_format   = args.format,
+            algorithm       = args.algorithm,
+            n_envs          = args.n_envs,
+            total_timesteps = args.total_timesteps,
+            skip_tournament = args.no_tournament,
         )
