@@ -1,0 +1,20 @@
+time="2026-05-04T21:01:05-03:00" level=warning msg="Found orphan containers ([alphazero-train-offline-v2 alphazero-train-offline]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container showdown-sim  Running
+ Container showdown  Running
+{
+  "path": "checkpoints/alphazero_mcts_ppo_offline_d2/best.pt",
+  "keys": [
+    "model_config",
+    "model_state_dict",
+    "trained_rows"
+  ],
+  "model_config": {
+    "state_size": 352,
+    "action_size": 168,
+    "hidden_size": 256,
+    "embedding_size": 192,
+    "layers": 2
+  },
+  "trained_rows": 20000,
+  "parameter_count": 564098
+}

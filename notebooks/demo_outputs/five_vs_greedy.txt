@@ -1,0 +1,255 @@
+time="2026-05-04T20:14:51-03:00" level=warning msg="Found orphan containers ([alphazero-train-offline-v2 alphazero-train-offline]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container showdown-sim  Running
+ Container showdown  Running
+=======================================================
+  VGC Bot - Play
+=======================================================
+  Servidor: ws://showdown:8000/showdown/websocket
+  Formato:  gen9vgc2026regi
+  Principal: ALPHAZERO_MCTS (Laboratorio3IA)
+  Rival:     GREEDY (Laboratorio3IA-B)
+  AlphaZero: checkpoint=checkpoints/alphazero_mcts_ppo_offline_d2/best.pt | sims=128 | depth=2
+  Simulador: http://showdown-sim:9001 | estado=http://showdown:9002 | policy=robust | worst_weight=0.35 | required=True
+  Partidas:  5
+=======================================================
+
+  Conectando cuenta(s)...
+  Cuenta(s) conectada(s).
+  Limpieza inicial: no habia batallas abiertas.
+
+  Iniciando 5 partida(s)...
+
+
+  Batalla detectada: battle-gen9vgc2026regi-9
+  Turno 1 [Principal]: propios: milotic (100%), tyranitar (100%) | rival: garchomp (100%), whimsicott (100%)
+    Decision [Principal]: /choose move scald terastallize 2, move crunch 2
+
+  Batalla detectada: battle-gen9vgc2026regi-9
+  Turno 1 [Rival]: propios: garchomp (100%), whimsicott (100%) | rival: milotic (100%), tyranitar (100%)
+    Decision [Rival]: /choose move earthquake, move tailwind
+  Turno 2 [Principal]: propios: milotic (62%), tyranitar (33%) | rival: garchomp (100%), whimsicott (12%)
+    Decision [Principal]: /choose move protect, switch Incineroar
+  Turno 2 [Rival]: propios: garchomp (100%), whimsicott (12%) | rival: milotic (62%), tyranitar (32%)
+    Decision [Rival]: /choose move earthquake, move tailwind
+    Decision [Rival]: /choose pass, switch Tyranitar
+  Turno 3 [Principal]: propios: milotic (62%), incineroar (73%) | rival: garchomp (100%), tyranitar (100%)
+    Decision [Principal]: /choose move scald 2, move partingshot 2
+  Turno 3 [Rival]: propios: garchomp (100%), tyranitar (100%) | rival: milotic (62%), incineroar (72%)
+    Decision [Rival]: /choose move earthquake, move rockslide
+  Turno 4 [Principal]: propios: milotic (8%), incineroar (18%) | rival: garchomp (100%), tyranitar (4%, brn)
+    Decision [Principal]: /choose move scald 2, move partingshot 2
+  Turno 4 [Rival]: propios: garchomp (100%), tyranitar (4%, brn) | rival: milotic (8%), incineroar (18%)
+    Decision [Rival]: /choose move earthquake, move rockslide
+    Decision [Rival]: /choose pass, switch Incineroar
+    Decision [Principal]: /choose switch Tyranitar, switch Whimsicott
+  Turno 5 [Rival]: propios: garchomp (100%), incineroar (100%) | rival: tyranitar (32%), whimsicott (100%)
+    Decision [Rival]: /choose move earthquake, move flareblitz 2
+  Turno 5 [Principal]: propios: tyranitar (33%), whimsicott (100%) | rival: garchomp (100%), incineroar (100%)
+    Decision [Principal]: /choose move protect, move protect
+  Turno 6 [Rival]: propios: garchomp (100%), incineroar (73%) | rival: tyranitar (32%), whimsicott (100%)
+    Decision [Rival]: /choose move earthquake, move flareblitz 1
+  Turno 6 [Principal]: propios: tyranitar (33%), whimsicott (100%) | rival: garchomp (100%), incineroar (72%)
+    Decision [Principal]: /choose move rockslide, move charm 1
+  Turno 7 [Principal]: propios: whimsicott (91%) | rival: garchomp (100%), incineroar (41%)
+    Decision [Principal]: /choose pass, move charm -1
+  Turno 7 [Rival]: propios: garchomp (100%), incineroar (42%) | rival: whimsicott (90%)
+    Decision [Rival]: /choose move earthquake, move flareblitz 1
+
+  Batalla detectada: battle-gen9vgc2026regi-10
+  Turno 1 [Principal]: propios: tyranitar (100%), scizor (100%) | rival: incineroar (100%), garchomp (100%)
+  Final: battle-gen9vgc2026regi-9 -> DERROTA en 7 turnos.
+    Decision [Principal]: /choose move rockslide terastallize, move closecombat 1
+
+  Batalla detectada: battle-gen9vgc2026regi-10
+  Turno 1 [Rival]: propios: incineroar (100%), garchomp (100%) | rival: tyranitar (100%), scizor (100%)
+    Decision [Rival]: /choose move flareblitz 1, move earthquake
+    Decision [Rival]: /choose switch Whimsicott, pass
+  Turno 2 [Principal]: propios: tyranitar (33%), scizor (57%) | rival: whimsicott (100%), garchomp (63%)
+    Decision [Principal]: /choose move rockslide, move bulletpunch 1
+  Turno 2 [Rival]: propios: whimsicott (100%), garchomp (63%) | rival: tyranitar (32%), scizor (57%)
+    Decision [Rival]: /choose move tailwind, move earthquake
+    Decision [Principal]: /choose switch Milotic, pass
+  Turno 3 [Principal]: propios: milotic (100%), scizor (3%) | rival: whimsicott (15%), garchomp (63%)
+    Decision [Principal]: /choose move scald 2, move bugbite 2
+  Turno 3 [Rival]: propios: whimsicott (15%), garchomp (63%) | rival: milotic (100%), scizor (2%)
+    Decision [Rival]: /choose move tailwind, move earthquake
+    Decision [Principal]: /choose pass, switch Incineroar
+    Decision [Rival]: /choose switch Milotic, pass
+  Turno 4 [Principal]: propios: milotic (66%), incineroar (100%) | rival: milotic (100%), garchomp (34%)
+    Decision [Principal]: /choose move protect, move partingshot 1
+  Turno 4 [Rival]: propios: milotic (100%), garchomp (35%) | rival: milotic (65%), incineroar (100%)
+    Decision [Rival]: /choose move icebeam 2, move earthquake
+  Turno 5 [Principal]: propios: milotic (66%), incineroar (54%) | rival: milotic (73%), garchomp (34%)
+    Decision [Principal]: /choose move protect, move partingshot 1
+  Turno 5 [Rival]: propios: milotic (74%), garchomp (35%) | rival: milotic (65%), incineroar (53%)
+    Decision [Rival]: /choose move icebeam 1, move earthquake
+  Turno 6 [Rival]: propios: milotic (57%), garchomp (35%) | rival: milotic (17%), incineroar (4%)
+    Decision [Rival]: /choose move icebeam 1, move earthquake
+  Turno 6 [Principal]: propios: milotic (18%), incineroar (4%) | rival: milotic (56%), garchomp (34%)
+    Decision [Principal]: /choose move protect, move partingshot 1
+  Turno 7 [Principal]: propios: milotic (24%) | rival: milotic (38%), garchomp (34%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 7 [Rival]: propios: milotic (39%), garchomp (35%) | rival: milotic (23%)
+    Decision [Rival]: /choose move icebeam 1, move earthquake
+  Turno 8 [Rival]: propios: milotic (20%), garchomp (35%) | rival: milotic (29%)
+    Decision [Rival]: /choose move icebeam 2, move earthquake
+  Turno 8 [Principal]: propios: milotic (29%) | rival: milotic (19%), garchomp (34%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 9 [Principal]: propios: milotic (10%) | rival: garchomp (34%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 9 [Rival]: propios: garchomp (35%) | rival: milotic (10%)
+    Decision [Rival]: /choose pass, move earthquake
+  Turno 10 [Principal]: propios: milotic (16%) | rival: garchomp (34%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 10 [Rival]: propios: garchomp (35%) | rival: milotic (16%)
+    Decision [Rival]: /choose pass, move earthquake
+  Turno 11 [Rival]: propios: garchomp (35%) | rival: milotic (21%)
+    Decision [Rival]: /choose pass, move earthquake
+  Turno 11 [Principal]: propios: milotic (22%) | rival: garchomp (34%)
+    Decision [Principal]: /choose move protect, pass
+
+  Batalla detectada: battle-gen9vgc2026regi-11
+  Turno 1 [Principal]: propios: milotic (100%), garchomp (100%) | rival: scizor (100%), garchomp (100%)
+  Final: battle-gen9vgc2026regi-10 -> DERROTA en 11 turnos.
+    Decision [Principal]: /choose move scald terastallize 1, move earthquake
+
+  Batalla detectada: battle-gen9vgc2026regi-11
+  Turno 1 [Rival]: propios: scizor (100%), garchomp (100%) | rival: milotic (100%), garchomp (100%)
+    Decision [Rival]: /choose move closecombat 2, move earthquake
+    Decision [Rival]: /choose switch Tyranitar, pass
+  Turno 2 [Principal]: propios: milotic (29%), garchomp (68%) | rival: tyranitar (100%), garchomp (63%)
+    Decision [Principal]: /choose move scald 2, move earthquake
+  Turno 2 [Rival]: propios: tyranitar (100%), garchomp (64%) | rival: milotic (29%), garchomp (68%)
+    Decision [Rival]: /choose move rockslide, move earthquake
+    Decision [Rival]: /choose switch Milotic, pass
+    Decision [Principal]: /choose switch Tyranitar, pass
+  Turno 3 [Principal]: propios: tyranitar (100%), garchomp (35%) | rival: milotic (100%), garchomp (27%)
+    Decision [Principal]: /choose move rockslide, move earthquake
+  Turno 3 [Rival]: propios: milotic (100%), garchomp (28%) | rival: tyranitar (100%), garchomp (34%)
+    Decision [Rival]: /choose move icebeam 1, move earthquake
+  Turno 4 [Principal]: propios: tyranitar (23%), garchomp (35%) | rival: milotic (22%)
+    Decision [Principal]: /choose move rockslide, move earthquake
+  Turno 4 [Rival]: propios: milotic (22%) | rival: tyranitar (22%), garchomp (34%)
+    Decision [Rival]: /choose move icebeam 2, pass
+
+  Batalla detectada: battle-gen9vgc2026regi-12
+  Turno 1 [Principal]: propios: incineroar (100%), scizor (100%) | rival: incineroar (100%), tyranitar (100%)
+  Final: battle-gen9vgc2026regi-11 -> VICTORIA en 4 turnos.
+    Decision [Principal]: /choose move flareblitz terastallize 2, move bulletpunch 2
+
+  Batalla detectada: battle-gen9vgc2026regi-12
+  Turno 1 [Rival]: propios: incineroar (100%), tyranitar (100%) | rival: incineroar (100%), scizor (100%)
+    Decision [Rival]: /choose move flareblitz 2, move rockslide
+    Decision [Rival]: /choose pass, switch Milotic
+  Turno 2 [Rival]: propios: incineroar (72%), milotic (100%) | rival: incineroar (87%), scizor (22%)
+    Decision [Rival]: /choose move flareblitz 2, move icebeam 2
+  Turno 2 [Principal]: propios: incineroar (87%), scizor (23%) | rival: incineroar (72%), milotic (100%)
+    Decision [Principal]: /choose move fakeout 2, move bulletpunch 1
+    Decision [Principal]: /choose pass, switch Milotic
+  Turno 3 [Rival]: propios: incineroar (53%), milotic (100%) | rival: incineroar (81%), milotic (100%)
+    Decision [Rival]: /choose move flareblitz 1, move icebeam 2
+  Turno 3 [Principal]: propios: incineroar (82%), milotic (100%) | rival: incineroar (53%), milotic (100%)
+    Decision [Principal]: /choose switch Garchomp, move scald 1
+    Decision [Rival]: /choose switch Scizor, pass
+  Turno 4 [Principal]: propios: garchomp (100%), milotic (91%) | rival: scizor (100%), milotic (100%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 4 [Rival]: propios: scizor (100%), milotic (100%) | rival: garchomp (100%), milotic (91%)
+    Decision [Rival]: /choose move closecombat 2, move icebeam 1
+  Turno 5 [Principal]: propios: garchomp (100%), milotic (49%) | rival: scizor (78%), milotic (72%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 5 [Rival]: propios: scizor (78%), milotic (73%) | rival: garchomp (100%), milotic (49%)
+    Decision [Rival]: /choose move closecombat 2, move icebeam 1
+  Turno 6 [Rival]: propios: scizor (78%), milotic (52%) | rival: garchomp (12%), milotic (11%)
+    Decision [Rival]: /choose move closecombat 1, move icebeam 1
+  Turno 6 [Principal]: propios: garchomp (13%), milotic (11%) | rival: scizor (78%), milotic (52%)
+    Decision [Principal]: /choose move rockslide, move scald 1
+  Turno 7 [Rival]: propios: milotic (40%) | rival: garchomp (12%), milotic (17%)
+    Decision [Rival]: /choose pass, move icebeam 1
+  Turno 7 [Principal]: propios: garchomp (13%), milotic (17%) | rival: milotic (39%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+    Decision [Principal]: /choose switch Incineroar, pass
+  Turno 8 [Rival]: propios: milotic (12%) | rival: incineroar (81%), milotic (22%)
+    Decision [Rival]: /choose pass, move icebeam 1
+  Turno 8 [Principal]: propios: incineroar (82%), milotic (23%) | rival: milotic (12%)
+    Decision [Principal]: /choose move protect, move icebeam 1
+
+  Batalla detectada: battle-gen9vgc2026regi-13
+  Turno 1 [Principal]: propios: incineroar (100%), scizor (100%) | rival: garchomp (100%), milotic (100%)
+  Final: battle-gen9vgc2026regi-12 -> VICTORIA en 8 turnos.
+    Decision [Principal]: /choose move flareblitz terastallize 2, move bulletpunch 2
+
+  Batalla detectada: battle-gen9vgc2026regi-13
+  Turno 1 [Rival]: propios: garchomp (100%), milotic (100%) | rival: incineroar (100%), scizor (100%)
+    Decision [Rival]: /choose move earthquake, move icebeam 2
+  Turno 2 [Rival]: propios: garchomp (100%), milotic (30%) | rival: incineroar (67%), scizor (43%)
+    Decision [Rival]: /choose move earthquake, move icebeam 2
+  Turno 2 [Principal]: propios: incineroar (68%), scizor (44%) | rival: garchomp (100%), milotic (30%)
+    Decision [Principal]: /choose move fakeout 2, move bulletpunch 2
+    Decision [Rival]: /choose pass, switch Tyranitar
+  Turno 3 [Principal]: propios: incineroar (19%), scizor (20%) | rival: garchomp (100%), tyranitar (100%)
+    Decision [Principal]: /choose move fakeout 2, move bulletpunch 2
+  Turno 3 [Rival]: propios: garchomp (100%), tyranitar (100%) | rival: incineroar (19%), scizor (19%)
+    Decision [Rival]: /choose move earthquake, move rockslide
+    Decision [Principal]: /choose switch Milotic, switch Tyranitar
+  Turno 4 [Principal]: propios: milotic (100%), tyranitar (100%) | rival: garchomp (100%), tyranitar (9%)
+    Decision [Principal]: /choose move protect, move crunch 2
+  Turno 4 [Rival]: propios: garchomp (100%), tyranitar (9%) | rival: milotic (100%), tyranitar (100%)
+    Decision [Rival]: /choose move earthquake, move rockslide
+    Decision [Rival]: /choose pass, switch Scizor
+  Turno 5 [Principal]: propios: milotic (100%), tyranitar (43%) | rival: garchomp (61%), scizor (100%)
+    Decision [Principal]: /choose move scald 2, move rockslide
+  Turno 5 [Rival]: propios: garchomp (62%), scizor (100%) | rival: milotic (100%), tyranitar (43%)
+    Decision [Rival]: /choose move earthquake, move closecombat 2
+  Turno 6 [Principal]: propios: milotic (76%) | rival: garchomp (61%), scizor (35%)
+    Decision [Principal]: /choose move scald 1, pass
+  Turno 6 [Rival]: propios: garchomp (62%), scizor (36%) | rival: milotic (75%)
+    Decision [Rival]: /choose move earthquake, move closecombat 2
+  Turno 7 [Rival]: propios: garchomp (10%) | rival: milotic (52%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 7 [Principal]: propios: milotic (53%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 8 [Principal]: propios: milotic (59%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 8 [Rival]: propios: garchomp (10%) | rival: milotic (58%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 9 [Principal]: propios: milotic (64%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 9 [Rival]: propios: garchomp (10%) | rival: milotic (64%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 10 [Principal]: propios: milotic (37%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 10 [Rival]: propios: garchomp (10%) | rival: milotic (36%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 11 [Principal]: propios: milotic (43%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 11 [Rival]: propios: garchomp (10%) | rival: milotic (42%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 12 [Principal]: propios: milotic (48%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 12 [Rival]: propios: garchomp (10%) | rival: milotic (48%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 13 [Rival]: propios: garchomp (10%) | rival: milotic (24%)
+    Decision [Rival]: /choose move earthquake, pass
+  Turno 13 [Principal]: propios: milotic (24%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 14 [Principal]: propios: milotic (30%) | rival: garchomp (10%)
+    Decision [Principal]: /choose move protect, pass
+  Turno 14 [Rival]: propios: garchomp (10%) | rival: milotic (29%)
+    Decision [Rival]: /choose move earthquake, pass
+  Final: battle-gen9vgc2026regi-13 -> DERROTA en 14 turnos.
+
+=======================================================
+  RESULTADOS
+=======================================================
+  Principal ALPHAZERO_MCTS victorias: 2 / 5
+  Rival     GREEDY   victorias: 3 / 5
+=======================================================
+
+  Gano el rival (GREEDY).
+
+  Partidas jugadas:
+    [DERROTA] battle-gen9vgc2026regi-9 - 7 turnos
+    [DERROTA] battle-gen9vgc2026regi-10 - 11 turnos
+    [VICTORIA] battle-gen9vgc2026regi-11 - 4 turnos
+    [VICTORIA] battle-gen9vgc2026regi-12 - 8 turnos
+    [DERROTA] battle-gen9vgc2026regi-13 - 14 turnos

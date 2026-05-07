@@ -1,0 +1,74 @@
+time="2026-05-04T21:02:18-03:00" level=warning msg="Found orphan containers ([alphazero-train-offline-v2 alphazero-train-offline]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container showdown-sim  Running
+ Container showdown  Running
+=======================================================
+  VGC Bot - Play
+=======================================================
+  Servidor: ws://showdown:8000/showdown/websocket
+  Formato:  gen9vgc2026regi
+  Principal: ALPHAZERO_MCTS (Laboratorio3IA)
+  Rival:     ALPHAZERO_MCTS (Laboratorio3IA-B)
+  AlphaZero: checkpoint=checkpoints/alphazero_mcts_ppo_offline_d2/best.pt | sims=128 | depth=2
+  Simulador: http://showdown-sim:9001 | estado=http://showdown:9002 | policy=robust | worst_weight=0.35 | required=True
+  Partidas:  1
+=======================================================
+
+  Conectando cuenta(s)...
+  Cuenta(s) conectada(s).
+  Limpieza inicial: no habia batallas abiertas.
+
+  Iniciando 1 partida(s)...
+
+
+  Batalla detectada: battle-gen9vgc2026regi-3
+  Turno 1 [Principal]: propios: whimsicott (100%), tyranitar (100%) | rival: scizor (100%), whimsicott (100%)
+    Decision [Principal]: /choose switch Garchomp, move rockslide terastallize
+
+  Batalla detectada: battle-gen9vgc2026regi-3
+  Turno 1 [Rival]: propios: scizor (100%), whimsicott (100%) | rival: whimsicott (100%), tyranitar (100%)
+    Decision [Rival]: /choose move bulletpunch terastallize 1, move charm 1
+    Decision [Rival]: /choose switch Milotic, pass
+  Turno 2 [Principal]: propios: garchomp (70%), tyranitar (100%) | rival: milotic (100%), whimsicott (41%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 2 [Rival]: propios: milotic (100%), whimsicott (41%) | rival: garchomp (70%), tyranitar (100%)
+    Decision [Rival]: /choose move icebeam 1, move charm -1
+    Decision [Rival]: /choose pass, switch Garchomp
+  Turno 3 [Principal]: propios: garchomp (70%), tyranitar (100%) | rival: milotic (52%), garchomp (100%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 3 [Rival]: propios: milotic (53%), garchomp (100%) | rival: garchomp (70%), tyranitar (100%)
+    Decision [Rival]: /choose move icebeam 1, move rockslide
+    Decision [Principal]: /choose switch Whimsicott, pass
+  Turno 4 [Principal]: propios: whimsicott (100%), tyranitar (84%) | rival: milotic (52%), garchomp (100%)
+    Decision [Principal]: /choose move protect, move crunch 2
+  Turno 4 [Rival]: propios: milotic (53%), garchomp (100%) | rival: whimsicott (100%), tyranitar (83%)
+    Decision [Rival]: /choose move scald 2, move rockslide
+    Decision [Principal]: /choose pass, switch Incineroar
+  Turno 5 [Principal]: propios: whimsicott (94%), incineroar (100%) | rival: milotic (52%), garchomp (78%)
+    Decision [Principal]: /choose move protect, move partingshot 1
+  Turno 5 [Rival]: propios: milotic (53%), garchomp (79%) | rival: whimsicott (94%), incineroar (100%)
+    Decision [Rival]: /choose move protect, move rockslide
+  Turno 6 [Rival]: propios: milotic (59%), garchomp (79%) | rival: whimsicott (76%), incineroar (75%)
+    Decision [Rival]: /choose move protect, move rockslide
+  Turno 6 [Principal]: propios: whimsicott (77%), incineroar (76%) | rival: milotic (58%), garchomp (78%)
+    Decision [Principal]: /choose move protect, move partingshot 1
+  Turno 7 [Principal]: propios: whimsicott (77%), incineroar (74%) | rival: milotic (64%), garchomp (78%)
+    Decision [Principal]: /choose move protect, move partingshot 1
+  Turno 7 [Rival]: propios: milotic (64%), garchomp (79%) | rival: whimsicott (76%), incineroar (73%)
+    Decision [Rival]: /choose move scald 2, move rockslide
+  Turno 8 [Rival]: propios: milotic (70%), garchomp (79%) | rival: whimsicott (76%)
+    Decision [Rival]: /choose move scald 2, move rockslide
+  Turno 8 [Principal]: propios: whimsicott (77%) | rival: milotic (70%), garchomp (78%)
+    Decision [Principal]: /choose move protect, pass
+  Final: battle-gen9vgc2026regi-3 -> DERROTA en 8 turnos.
+
+=======================================================
+  RESULTADOS
+=======================================================
+  Principal ALPHAZERO_MCTS victorias: 0 / 1
+  Rival     ALPHAZERO_MCTS victorias: 1 / 1
+=======================================================
+
+  Gano el rival (ALPHAZERO_MCTS).
+
+  Partidas jugadas:
+    [DERROTA] battle-gen9vgc2026regi-3 - 8 turnos

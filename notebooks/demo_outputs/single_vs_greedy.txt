@@ -1,0 +1,70 @@
+time="2026-05-04T21:01:58-03:00" level=warning msg="Found orphan containers ([alphazero-train-offline-v2 alphazero-train-offline]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container showdown  Running
+ Container showdown-sim  Running
+=======================================================
+  VGC Bot - Play
+=======================================================
+  Servidor: ws://showdown:8000/showdown/websocket
+  Formato:  gen9vgc2026regi
+  Principal: ALPHAZERO_MCTS (Laboratorio3IA)
+  Rival:     GREEDY (Laboratorio3IA-B)
+  AlphaZero: checkpoint=checkpoints/alphazero_mcts_ppo_offline_d2/best.pt | sims=128 | depth=2
+  Simulador: http://showdown-sim:9001 | estado=http://showdown:9002 | policy=robust | worst_weight=0.35 | required=True
+  Partidas:  1
+=======================================================
+
+  Conectando cuenta(s)...
+  Cuenta(s) conectada(s).
+  Limpieza inicial: no habia batallas abiertas.
+
+  Iniciando 1 partida(s)...
+
+
+  Batalla detectada: battle-gen9vgc2026regi-2
+  Turno 1 [Rival]: propios: scizor (100%), incineroar (100%) | rival: scizor (100%), garchomp (100%)
+    Decision [Rival]: /choose move closecombat 1, move flareblitz 2
+
+  Batalla detectada: battle-gen9vgc2026regi-2
+  Turno 1 [Principal]: propios: scizor (100%), garchomp (100%) | rival: scizor (100%), incineroar (100%)
+    Decision [Principal]: /choose move bugbite terastallize 2, move earthquake
+    Decision [Rival]: /choose pass, switch Garchomp
+  Turno 2 [Principal]: propios: scizor (89%), garchomp (77%) | rival: scizor (75%), garchomp (100%)
+    Decision [Principal]: /choose move bugbite 2, switch Tyranitar
+  Turno 2 [Rival]: propios: scizor (76%), garchomp (100%) | rival: scizor (89%), garchomp (77%)
+    Decision [Rival]: /choose move closecombat 2, move earthquake
+    Decision [Principal]: /choose pass, switch Incineroar
+  Turno 3 [Principal]: propios: scizor (49%), incineroar (100%) | rival: scizor (18%), garchomp (62%)
+    Decision [Principal]: /choose move bugbite 2, move fakeout 1
+  Turno 3 [Rival]: propios: scizor (19%), garchomp (63%) | rival: scizor (49%), incineroar (100%)
+    Decision [Rival]: /choose move closecombat 1, move earthquake
+    Decision [Rival]: /choose switch Whimsicott, pass
+  Turno 4 [Principal]: propios: scizor (18%), incineroar (74%) | rival: whimsicott (100%), garchomp (22%)
+    Decision [Principal]: /choose move uturn 2, move fakeout -1
+  Turno 4 [Rival]: propios: whimsicott (100%), garchomp (22%) | rival: scizor (17%), incineroar (73%)
+    Decision [Rival]: /choose move tailwind, move earthquake
+    Decision [Principal]: /choose switch Garchomp, pass
+  Turno 5 [Principal]: propios: garchomp (77%), incineroar (20%) | rival: whimsicott (79%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Turno 5 [Rival]: propios: whimsicott (79%) | rival: garchomp (77%), incineroar (19%)
+    Decision [Rival]: /choose move tailwind, pass
+  Turno 6 [Rival]: propios: whimsicott (40%) | rival: garchomp (77%), incineroar (13%)
+    Decision [Rival]: /choose move tailwind, pass
+  Turno 6 [Principal]: propios: garchomp (77%), incineroar (14%) | rival: whimsicott (40%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Turno 7 [Rival]: propios: whimsicott (6%) | rival: garchomp (77%), incineroar (13%)
+    Decision [Rival]: /choose move tailwind, pass
+  Turno 7 [Principal]: propios: garchomp (77%), incineroar (14%) | rival: whimsicott (5%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Final: battle-gen9vgc2026regi-2 -> VICTORIA en 7 turnos.
+
+=======================================================
+  RESULTADOS
+=======================================================
+  Principal ALPHAZERO_MCTS victorias: 1 / 1
+  Rival     GREEDY   victorias: 0 / 1
+=======================================================
+
+  Gano el bot principal (ALPHAZERO_MCTS).
+
+  Partidas jugadas:
+    [VICTORIA] battle-gen9vgc2026regi-2 - 7 turnos

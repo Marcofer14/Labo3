@@ -1,0 +1,412 @@
+time="2026-05-04T20:15:52-03:00" level=warning msg="Found orphan containers ([alphazero-train-offline-v2 alphazero-train-offline]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container showdown-sim  Running
+ Container showdown  Running
+=======================================================
+  VGC Bot - Play
+=======================================================
+  Servidor: ws://showdown:8000/showdown/websocket
+  Formato:  gen9vgc2026regi
+  Principal: ALPHAZERO_MCTS (Laboratorio3IA)
+  Rival:     ALPHAZERO_MCTS (Laboratorio3IA-B)
+  AlphaZero: checkpoint=checkpoints/alphazero_mcts_ppo_offline_d2/best.pt | sims=128 | depth=2
+  Simulador: http://showdown-sim:9001 | estado=http://showdown:9002 | policy=robust | worst_weight=0.35 | required=True
+  Partidas:  5
+=======================================================
+
+  Conectando cuenta(s)...
+  Cuenta(s) conectada(s).
+  Limpieza inicial: no habia batallas abiertas.
+
+  Iniciando 5 partida(s)...
+
+
+  Batalla detectada: battle-gen9vgc2026regi-14
+  Turno 1 [Principal]: propios: scizor (100%), incineroar (100%) | rival: scizor (100%), milotic (100%)
+    Decision [Principal]: /choose move bugbite terastallize 2, move flareblitz 2
+
+  Batalla detectada: battle-gen9vgc2026regi-14
+  Turno 1 [Rival]: propios: scizor (100%), milotic (100%) | rival: scizor (100%), incineroar (100%)
+    Decision [Rival]: /choose move bulletpunch terastallize 1, move icebeam 1
+  Turno 2 [Principal]: propios: scizor (15%), incineroar (92%) | rival: scizor (100%), milotic (21%)
+    Decision [Principal]: /choose move bugbite 2, move fakeout -1
+  Turno 2 [Rival]: propios: scizor (100%), milotic (21%) | rival: scizor (14%), incineroar (91%)
+    Decision [Rival]: /choose move closecombat 1, move icebeam 1
+    Decision [Principal]: /choose switch Garchomp, pass
+  Turno 3 [Rival]: propios: scizor (100%), milotic (27%) | rival: garchomp (100%), incineroar (58%)
+    Decision [Rival]: /choose move uturn 1, move icebeam 2
+  Turno 3 [Principal]: propios: garchomp (100%), incineroar (59%) | rival: scizor (100%), milotic (27%)
+    Decision [Principal]: /choose move rockslide, move fakeout 1
+  Turno 4 [Principal]: propios: garchomp (100%), incineroar (36%) | rival: scizor (41%), milotic (12%)
+    Decision [Principal]: /choose move rockslide, move fakeout 1
+  Turno 4 [Rival]: propios: scizor (42%), milotic (13%) | rival: garchomp (100%), incineroar (36%)
+    Decision [Rival]: /choose move bugbite 2, move icebeam -1
+    Decision [Rival]: /choose switch Tyranitar, switch Whimsicott
+  Turno 5 [Principal]: propios: garchomp (100%), incineroar (36%) | rival: tyranitar (100%), whimsicott (100%)
+    Decision [Principal]: /choose move rockslide, move fakeout 1
+  Turno 5 [Rival]: propios: tyranitar (100%), whimsicott (100%) | rival: garchomp (100%), incineroar (36%)
+    Decision [Rival]: /choose move rockslide, move charm 1
+    Decision [Principal]: /choose pass, switch Tyranitar
+  Turno 6 [Rival]: propios: tyranitar (92%), whimsicott (82%) | rival: garchomp (86%), tyranitar (100%)
+    Decision [Rival]: /choose move rockslide, move charm 1
+  Turno 6 [Principal]: propios: garchomp (87%), tyranitar (100%) | rival: tyranitar (91%), whimsicott (82%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 7 [Principal]: propios: garchomp (87%), tyranitar (100%) | rival: tyranitar (60%), whimsicott (39%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 7 [Rival]: propios: tyranitar (61%), whimsicott (40%) | rival: garchomp (86%), tyranitar (100%)
+    Decision [Rival]: /choose move rockslide, move charm 2
+  Turno 8 [Principal]: propios: garchomp (87%), tyranitar (76%) | rival: tyranitar (31%), whimsicott (25%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 8 [Rival]: propios: tyranitar (31%), whimsicott (26%) | rival: garchomp (86%), tyranitar (75%)
+    Decision [Rival]: /choose move rockslide, move protect
+  Turno 9 [Principal]: propios: garchomp (87%), tyranitar (76%) | rival: tyranitar (1%), whimsicott (20%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 9 [Rival]: propios: tyranitar (1%), whimsicott (20%) | rival: garchomp (86%), tyranitar (75%)
+    Decision [Rival]: /choose move protect, move protect
+  Turno 10 [Rival]: propios: tyranitar (1%), whimsicott (20%) | rival: garchomp (86%), tyranitar (75%)
+    Decision [Rival]: /choose move crunch 2, move charm 1
+  Turno 10 [Principal]: propios: garchomp (87%), tyranitar (76%) | rival: tyranitar (1%), whimsicott (20%)
+    Decision [Principal]: /choose move rockslide, move crunch 2
+
+  Batalla detectada: battle-gen9vgc2026regi-15
+  Turno 1 [Principal]: propios: whimsicott (100%), scizor (100%) | rival: garchomp (100%), milotic (100%)
+  Final: battle-gen9vgc2026regi-14 -> VICTORIA en 10 turnos.
+    Decision [Principal]: /choose switch Garchomp, move closecombat terastallize 2
+
+  Batalla detectada: battle-gen9vgc2026regi-15
+  Turno 1 [Rival]: propios: garchomp (100%), milotic (100%) | rival: whimsicott (100%), scizor (100%)
+    Decision [Rival]: /choose move dragonclaw terastallize 2, move icebeam 1
+  Turno 2 [Rival]: propios: garchomp (100%), milotic (62%) | rival: garchomp (12%), scizor (39%)
+    Decision [Rival]: /choose move dragonclaw 1, move icebeam 2
+  Turno 2 [Principal]: propios: garchomp (13%), scizor (39%) | rival: garchomp (100%), milotic (62%)
+    Decision [Principal]: /choose move rockslide, move bugbite -1
+    Decision [Principal]: /choose pass, switch Tyranitar
+  Turno 3 [Principal]: propios: garchomp (13%), tyranitar (100%) | rival: garchomp (83%), milotic (49%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 3 [Rival]: propios: garchomp (84%), milotic (49%) | rival: garchomp (12%), tyranitar (100%)
+    Decision [Rival]: /choose move dragonclaw 1, move icebeam 1
+    Decision [Principal]: /choose switch Whimsicott, pass
+  Turno 4 [Principal]: propios: whimsicott (100%), tyranitar (100%) | rival: garchomp (32%), milotic (31%)
+    Decision [Principal]: /choose move protect, move crunch 1
+  Turno 4 [Rival]: propios: garchomp (32%), milotic (32%) | rival: whimsicott (100%), tyranitar (100%)
+    Decision [Rival]: /choose move dragonclaw 2, move icebeam 1
+    Decision [Rival]: /choose switch Whimsicott, pass
+  Turno 5 [Principal]: propios: whimsicott (94%), tyranitar (45%) | rival: whimsicott (100%), milotic (31%)
+    Decision [Principal]: /choose move charm -2, move crunch -1
+  Turno 5 [Rival]: propios: whimsicott (100%), milotic (32%) | rival: whimsicott (94%), tyranitar (45%)
+    Decision [Rival]: /choose move protect, move icebeam 1
+  Turno 6 [Principal]: propios: tyranitar (45%) | rival: whimsicott (94%), milotic (31%)
+    Decision [Principal]: /choose pass, move crunch 2
+  Turno 6 [Rival]: propios: whimsicott (94%), milotic (32%) | rival: tyranitar (45%)
+    Decision [Rival]: /choose move protect, move icebeam 1
+    Decision [Rival]: /choose pass, switch Scizor
+  Turno 7 [Rival]: propios: whimsicott (88%), scizor (100%) | rival: tyranitar (30%)
+    Decision [Rival]: /choose move protect, move bugbite 2
+  Turno 7 [Principal]: propios: tyranitar (31%) | rival: whimsicott (88%), scizor (100%)
+    Decision [Principal]: /choose pass, move protect
+  Turno 8 [Principal]: propios: tyranitar (31%) | rival: whimsicott (88%), scizor (100%)
+    Decision [Principal]: /choose pass, move crunch 2
+  Turno 8 [Rival]: propios: whimsicott (88%), scizor (100%) | rival: tyranitar (30%)
+    Decision [Rival]: /choose move protect, move bugbite 2
+
+  Batalla detectada: battle-gen9vgc2026regi-16
+  Turno 1 [Principal]: propios: scizor (100%), milotic (100%) | rival: incineroar (100%), tyranitar (100%)
+  Final: battle-gen9vgc2026regi-15 -> DERROTA en 8 turnos.
+    Decision [Principal]: /choose move bulletpunch terastallize 1, move icebeam 2
+
+  Batalla detectada: battle-gen9vgc2026regi-16
+  Turno 1 [Rival]: propios: incineroar (100%), tyranitar (100%) | rival: scizor (100%), milotic (100%)
+    Decision [Rival]: /choose move fakeout 2, move crunch 1
+  Turno 2 [Principal]: propios: scizor (47%), milotic (89%) | rival: incineroar (83%), tyranitar (100%)
+    Decision [Principal]: /choose move uturn 1, move icebeam 2
+  Turno 2 [Rival]: propios: incineroar (83%), tyranitar (100%) | rival: scizor (46%), milotic (88%)
+    Decision [Rival]: /choose move fakeout 2, move crunch 1
+    Decision [Principal]: /choose switch Tyranitar, pass
+  Turno 3 [Principal]: propios: tyranitar (83%), milotic (89%) | rival: incineroar (66%), tyranitar (70%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 3 [Rival]: propios: incineroar (66%), tyranitar (70%) | rival: tyranitar (83%), milotic (88%)
+    Decision [Rival]: /choose move fakeout 2, move crunch 1
+  Turno 4 [Principal]: propios: tyranitar (83%), milotic (89%) | rival: incineroar (4%), tyranitar (17%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 4 [Rival]: propios: incineroar (4%), tyranitar (18%) | rival: tyranitar (83%), milotic (88%)
+    Decision [Rival]: /choose switch Garchomp, move crunch terastallize 1
+    Decision [Rival]: /choose pass, switch Incineroar
+  Turno 5 [Rival]: propios: garchomp (80%), incineroar (4%) | rival: tyranitar (83%), milotic (88%)
+    Decision [Rival]: /choose move rockslide, move flareblitz 1
+  Turno 5 [Principal]: propios: tyranitar (83%), milotic (89%) | rival: garchomp (80%), incineroar (4%)
+    Decision [Principal]: /choose move rockslide, move icebeam 1
+    Decision [Rival]: /choose pass, switch Scizor
+  Turno 6 [Principal]: propios: tyranitar (47%), milotic (76%) | rival: scizor (100%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 6 [Rival]: propios: scizor (100%) | rival: tyranitar (46%), milotic (76%)
+    Decision [Rival]: /choose pass, move closecombat 1
+    Decision [Principal]: /choose switch Scizor, pass
+  Turno 7 [Principal]: propios: scizor (47%), milotic (82%) | rival: scizor (58%)
+    Decision [Principal]: /choose move bulletpunch 2, move icebeam -1
+  Turno 7 [Rival]: propios: scizor (59%) | rival: scizor (46%), milotic (82%)
+    Decision [Rival]: /choose pass, move closecombat 1
+    Decision [Principal]: /choose switch Incineroar, pass
+  Turno 8 [Principal]: propios: incineroar (100%), milotic (43%) | rival: scizor (32%)
+    Decision [Principal]: /choose move protect, move icebeam 1
+  Turno 8 [Rival]: propios: scizor (32%) | rival: incineroar (100%), milotic (42%)
+    Decision [Rival]: /choose pass, move closecombat -1
+
+  Batalla detectada: battle-gen9vgc2026regi-17
+  Turno 1 [Principal]: propios: garchomp (100%), scizor (100%) | rival: whimsicott (100%), incineroar (100%)
+  Final: battle-gen9vgc2026regi-16 -> VICTORIA en 8 turnos.
+    Decision [Principal]: /choose move rockslide terastallize, move closecombat 1
+
+  Batalla detectada: battle-gen9vgc2026regi-17
+  Turno 1 [Rival]: propios: whimsicott (100%), incineroar (100%) | rival: garchomp (100%), scizor (100%)
+    Decision [Rival]: /choose switch Garchomp, move flareblitz terastallize 2
+    Decision [Principal]: /choose pass, switch Tyranitar
+  Turno 2 [Rival]: propios: garchomp (75%), incineroar (51%) | rival: garchomp (100%), tyranitar (100%)
+    Decision [Rival]: /choose move rockslide, move partingshot -1
+  Turno 2 [Principal]: propios: garchomp (100%), tyranitar (100%) | rival: garchomp (75%), incineroar (50%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+    Decision [Rival]: /choose pass, switch Tyranitar
+  Turno 3 [Principal]: propios: garchomp (75%), tyranitar (83%) | rival: garchomp (56%), tyranitar (74%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 3 [Rival]: propios: garchomp (56%), tyranitar (74%) | rival: garchomp (75%), tyranitar (82%)
+    Decision [Rival]: /choose move rockslide, move rockslide
+  Turno 4 [Principal]: propios: garchomp (31%), tyranitar (48%) | rival: garchomp (50%), tyranitar (64%)
+    Decision [Principal]: /choose move rockslide, move crunch 1
+  Turno 4 [Rival]: propios: garchomp (51%), tyranitar (65%) | rival: garchomp (30%), tyranitar (48%)
+    Decision [Rival]: /choose move rockslide, move rockslide
+  Turno 5 [Principal]: propios: garchomp (13%), tyranitar (26%) | rival: garchomp (1%), tyranitar (54%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 5 [Rival]: propios: garchomp (2%), tyranitar (54%) | rival: garchomp (12%), tyranitar (25%)
+    Decision [Rival]: /choose move rockslide, move crunch 2
+    Decision [Rival]: /choose switch Incineroar, pass
+  Turno 6 [Rival]: propios: incineroar (50%), tyranitar (44%) | rival: garchomp (6%), tyranitar (7%)
+    Decision [Rival]: /choose move protect, move crunch 1
+  Turno 6 [Principal]: propios: garchomp (7%), tyranitar (7%) | rival: incineroar (50%), tyranitar (43%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 7 [Principal]: propios: garchomp (7%), tyranitar (7%) | rival: incineroar (50%), tyranitar (34%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 7 [Rival]: propios: incineroar (50%), tyranitar (35%) | rival: garchomp (6%), tyranitar (7%)
+    Decision [Rival]: /choose move protect, move crunch 1
+    Decision [Rival]: /choose switch Whimsicott, pass
+  Turno 8 [Principal]: propios: garchomp (7%), tyranitar (7%) | rival: whimsicott (100%), tyranitar (1%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 8 [Rival]: propios: whimsicott (100%), tyranitar (2%) | rival: garchomp (6%), tyranitar (7%)
+    Decision [Rival]: /choose move protect, move crunch 1
+  Turno 9 [Principal]: propios: garchomp (7%), tyranitar (7%) | rival: whimsicott (100%)
+    Decision [Principal]: /choose move rockslide, switch Incineroar
+  Turno 9 [Rival]: propios: whimsicott (100%) | rival: garchomp (6%), tyranitar (7%)
+    Decision [Rival]: /choose move protect, pass
+  Turno 10 [Principal]: propios: garchomp (7%), incineroar (100%) | rival: whimsicott (83%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Turno 10 [Rival]: propios: whimsicott (83%) | rival: garchomp (6%), incineroar (100%)
+    Decision [Rival]: /choose move protect, pass
+    Decision [Principal]: /choose switch Tyranitar, pass
+  Turno 11 [Rival]: propios: whimsicott (83%) | rival: tyranitar (7%), incineroar (87%)
+    Decision [Rival]: /choose move protect, pass
+  Turno 11 [Principal]: propios: tyranitar (7%), incineroar (88%) | rival: whimsicott (83%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Turno 12 [Rival]: propios: whimsicott (25%) | rival: tyranitar (7%), incineroar (82%)
+    Decision [Rival]: /choose move protect, pass
+  Turno 12 [Principal]: propios: tyranitar (7%), incineroar (82%) | rival: whimsicott (25%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Turno 13 [Principal]: propios: tyranitar (7%), incineroar (76%) | rival: whimsicott (19%)
+    Decision [Principal]: /choose move rockslide, move fakeout -1
+  Turno 13 [Rival]: propios: whimsicott (19%) | rival: tyranitar (7%), incineroar (76%)
+    Decision [Rival]: /choose move protect, pass
+
+  Batalla detectada: battle-gen9vgc2026regi-18
+  Turno 1 [Principal]: propios: scizor (100%), tyranitar (100%) | rival: garchomp (100%), incineroar (100%)
+  Final: battle-gen9vgc2026regi-17 -> VICTORIA en 13 turnos.
+    Decision [Principal]: /choose move bugbite terastallize 1, move crunch 1
+
+  Batalla detectada: battle-gen9vgc2026regi-18
+  Turno 1 [Rival]: propios: garchomp (100%), incineroar (100%) | rival: scizor (100%), tyranitar (100%)
+    Decision [Rival]: /choose move rockslide terastallize, move flareblitz 2
+  Turno 2 [Principal]: propios: scizor (40%), tyranitar (56%, brn) | rival: garchomp (52%), incineroar (86%)
+    Decision [Principal]: /choose move bugbite 1, move crunch 1
+  Turno 2 [Rival]: propios: garchomp (52%), incineroar (87%) | rival: scizor (39%), tyranitar (56%, brn)
+    Decision [Rival]: /choose move rockslide, move fakeout 1
+    Decision [Principal]: /choose switch Milotic, pass
+    Decision [Rival]: /choose switch Milotic, pass
+  Turno 3 [Principal]: propios: milotic (100%), tyranitar (36%, brn) | rival: milotic (100%), incineroar (80%)
+    Decision [Principal]: /choose move icebeam 2, move crunch 2
+  Turno 3 [Rival]: propios: milotic (100%), incineroar (81%) | rival: milotic (100%), tyranitar (35%, brn)
+    Decision [Rival]: /choose move protect, move partingshot 1
+    Decision [Rival]: /choose pass, switch Whimsicott
+  Turno 4 [Rival]: propios: milotic (100%), whimsicott (80%) | rival: milotic (100%), tyranitar (29%, brn)
+    Decision [Rival]: /choose move protect, move charm 2
+  Turno 4 [Principal]: propios: milotic (100%), tyranitar (30%, brn) | rival: milotic (100%), whimsicott (79%)
+    Decision [Principal]: /choose switch Garchomp, move crunch -1
+  Turno 5 [Principal]: propios: garchomp (80%), tyranitar (11%, brn) | rival: milotic (100%), whimsicott (74%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 5 [Rival]: propios: milotic (100%), whimsicott (74%) | rival: garchomp (80%), tyranitar (11%, brn)
+    Decision [Rival]: /choose move protect, move charm 2
+  Turno 6 [Principal]: propios: garchomp (80%), tyranitar (5%, brn) | rival: milotic (72%), whimsicott (52%)
+    Decision [Principal]: /choose move rockslide, move rockslide
+  Turno 6 [Rival]: propios: milotic (73%), whimsicott (53%) | rival: garchomp (80%), tyranitar (5%, brn)
+    Decision [Rival]: /choose move protect, move charm 2
+    Decision [Principal]: /choose pass, switch Milotic
+  Turno 7 [Principal]: propios: garchomp (80%), milotic (100%) | rival: milotic (78%), whimsicott (10%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 7 [Rival]: propios: milotic (79%), whimsicott (10%) | rival: garchomp (80%), milotic (100%)
+    Decision [Rival]: /choose move scald 1, switch Incineroar
+  Turno 8 [Rival]: propios: milotic (72%), incineroar (51%) | rival: garchomp (51%), milotic (100%)
+    Decision [Rival]: /choose move protect, move partingshot 1
+  Turno 8 [Principal]: propios: garchomp (52%), milotic (100%) | rival: milotic (71%), incineroar (51%)
+    Decision [Principal]: /choose move rockslide, move scald 2
+    Decision [Rival]: /choose pass, switch Whimsicott
+  Turno 9 [Principal]: propios: garchomp (52%), milotic (100%) | rival: milotic (77%), whimsicott (10%)
+    Decision [Principal]: /choose move rockslide, move icebeam 2
+  Turno 9 [Rival]: propios: milotic (78%), whimsicott (10%) | rival: garchomp (51%), milotic (100%)
+    Decision [Rival]: /choose move scald 1, move charm 1
+  Turno 10 [Rival]: propios: milotic (76%) | rival: garchomp (22%), milotic (100%)
+    Decision [Rival]: /choose move icebeam 1, pass
+  Turno 10 [Principal]: propios: garchomp (22%), milotic (100%) | rival: milotic (76%)
+    Decision [Principal]: /choose move rockslide, move scald 1
+  Turno 11 [Rival]: propios: milotic (49%) | rival: milotic (100%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 11 [Principal]: propios: milotic (100%) | rival: milotic (48%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 12 [Principal]: propios: milotic (98%) | rival: milotic (54%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 12 [Rival]: propios: milotic (55%) | rival: milotic (97%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 13 [Rival]: propios: milotic (60%) | rival: milotic (95%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 13 [Principal]: propios: milotic (95%) | rival: milotic (60%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 14 [Principal]: propios: milotic (92%) | rival: milotic (66%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 14 [Rival]: propios: milotic (66%) | rival: milotic (91%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 15 [Principal]: propios: milotic (89%) | rival: milotic (71%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 15 [Rival]: propios: milotic (72%) | rival: milotic (88%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 16 [Principal]: propios: milotic (85%) | rival: milotic (77%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 16 [Rival]: propios: milotic (78%) | rival: milotic (85%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 17 [Principal]: propios: milotic (82%) | rival: milotic (83%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 17 [Rival]: propios: milotic (83%) | rival: milotic (81%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 18 [Rival]: propios: milotic (89%) | rival: milotic (79%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 18 [Principal]: propios: milotic (79%) | rival: milotic (89%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 19 [Rival]: propios: milotic (95%) | rival: milotic (76%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 19 [Principal]: propios: milotic (76%) | rival: milotic (94%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 20 [Principal]: propios: milotic (73%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 20 [Rival]: propios: milotic (100%) | rival: milotic (72%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 21 [Principal]: propios: milotic (70%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 21 [Rival]: propios: milotic (100%) | rival: milotic (70%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 22 [Rival]: propios: milotic (100%) | rival: milotic (67%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 22 [Principal]: propios: milotic (68%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 23 [Principal]: propios: milotic (65%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move icebeam -1
+  Turno 23 [Rival]: propios: milotic (100%) | rival: milotic (64%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 24 [Rival]: propios: milotic (100%) | rival: milotic (62%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 24 [Principal]: propios: milotic (63%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 25 [Principal]: propios: milotic (59%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 25 [Rival]: propios: milotic (100%) | rival: milotic (59%)
+    Decision [Rival]: /choose move protect, pass
+  Turno 26 [Rival]: propios: milotic (100%) | rival: milotic (64%)
+    Decision [Rival]: /choose move icebeam 2, pass
+  Turno 26 [Principal]: propios: milotic (65%) | rival: milotic (100%)
+    Decision [Principal]: /choose pass, move scald 1
+  Turno 27 [Rival]: propios: milotic (76%, brn) | rival: milotic (62%)
+    Decision [Rival]: /choose move scald 1, pass
+  Turno 27 [Principal]: propios: milotic (63%) | rival: milotic (75%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 28 [Principal]: propios: milotic (51%, brn) | rival: milotic (75%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 28 [Rival]: propios: milotic (76%, brn) | rival: milotic (50%, brn)
+    Decision [Rival]: /choose move scald 1, pass
+  Turno 29 [Principal]: propios: milotic (40%, brn) | rival: milotic (75%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 29 [Rival]: propios: milotic (76%, brn) | rival: milotic (40%, brn)
+    Decision [Rival]: /choose move scald 1, pass
+  Turno 30 [Rival]: propios: milotic (76%, brn) | rival: milotic (29%, brn)
+    Decision [Rival]: /choose move scald 1, pass
+  Turno 30 [Principal]: propios: milotic (29%, brn) | rival: milotic (75%, brn)
+    Decision [Principal]: /choose pass, move scald 1
+  Turno 31 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 31 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 32 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 32 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 33 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 33 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 34 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 34 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 35 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 35 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 36 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 36 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 37 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 37 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 38 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 38 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 39 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 39 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 40 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 40 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move protect, pass
+  Turno 41 [Rival]: propios: milotic (40%, brn) | rival: milotic (18%, brn)
+    Decision [Rival]: /choose move scald 1, pass
+  Turno 41 [Principal]: propios: milotic (19%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 42 [Rival]: propios: milotic (40%, brn) | rival: milotic (8%, brn)
+    Decision [Rival]: /choose move recover, pass
+  Turno 42 [Principal]: propios: milotic (8%, brn) | rival: milotic (39%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 43 [Principal]: propios: milotic (8%, brn) | rival: milotic (89%, brn)
+    Decision [Principal]: /choose pass, move scald -1
+  Turno 43 [Rival]: propios: milotic (90%, brn) | rival: milotic (8%, brn)
+    Decision [Rival]: /choose move scald 1, pass
+  Final: battle-gen9vgc2026regi-18 -> DERROTA en 43 turnos.
+
+=======================================================
+  RESULTADOS
+=======================================================
+  Principal ALPHAZERO_MCTS victorias: 3 / 5
+  Rival     ALPHAZERO_MCTS victorias: 2 / 5
+=======================================================
+
+  Gano el bot principal (ALPHAZERO_MCTS).
+
+  Partidas jugadas:
+    [VICTORIA] battle-gen9vgc2026regi-14 - 10 turnos
+    [DERROTA] battle-gen9vgc2026regi-15 - 8 turnos
+    [VICTORIA] battle-gen9vgc2026regi-16 - 8 turnos
+    [VICTORIA] battle-gen9vgc2026regi-17 - 13 turnos
+    [DERROTA] battle-gen9vgc2026regi-18 - 43 turnos
