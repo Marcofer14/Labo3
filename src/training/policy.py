@@ -75,14 +75,12 @@ def build_policy_kwargs(train_cfg, algorithm: str) -> dict:
 def import_recurrent_ppo():
     """Devuelve (RecurrentPPO, policy_class). Requiere sb3-contrib."""
     from sb3_contrib import RecurrentPPO
-    from sb3_contrib.common.recurrent.policies import MlpLstmPolicy
-    return RecurrentPPO, MlpLstmPolicy
+    return RecurrentPPO, "MlpLstmPolicy"
 
 
 def import_maskable_ppo():
     from sb3_contrib import MaskablePPO
-    from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
-    return MaskablePPO, MaskableActorCriticPolicy
+    return MaskablePPO, "MlpPolicy"
 
 
 # ── Hook de activaciones (para callbacks) ───────────────────────

@@ -130,6 +130,23 @@ class VGCEnv(DoublesEnv):
         self.reward_config = cfg
         self.reward_calc.set_config(cfg)
 
+    @staticmethod
+    def action_to_order(action, battle: DoubleBattle, fake: bool = False, strict: bool = True):
+        """
+        Conversor tolerante para PPO/RecurrentPPO.
+
+        La policy puede proponer acciones inválidas antes de aprender el action
+        space. El conversor base de poke-env lanza ValueError en esos casos y
+        corta el entrenamiento; acá caemos a default/pass para que la penalización
+        venga por reward en vez de romper el rollout.
+        """
+        try:
+            return DoublesEnv.action_to_order(action, battle, fake=fake, strict=strict)
+        except Exception:
+            from src.training.opponents import actions_to_double_order
+
+            return actions_to_double_order(action, battle)
+
     # ── Action interception ──────────────────────────────────────
 
     def step(self, actions):
@@ -146,11 +163,61 @@ class VGCEnv(DoublesEnv):
         except Exception:
             # Nunca rompemos el step por un decoding fallido
             pass
-        return super().step(actions)
+        try:
+            return super().step(actions)
+        except AssertionError:
+            if not self._has_finished_battle():
+                raise
+            return self._finished_step_result()
 
     def reset(self, *args, **kwargs):
         self._last_actions.clear()
         return super().reset(*args, **kwargs)
+
+    def _has_finished_battle(self) -> bool:
+        return any(
+            bool(getattr(battle, "finished", False))
+            for battle in (getattr(self, "battle1", None), getattr(self, "battle2", None))
+        )
+
+    def _obs_for_battle(self, battle: Optional[DoubleBattle]) -> dict:
+        if battle is None:
+            obs = np.zeros(self.observation_spaces[self.possible_agents[0]].shape, dtype=np.float32)
+            mask = np.array([], dtype=bool)
+        else:
+            obs = self.embed_battle(battle)
+            try:
+                mask = np.array(self.get_action_mask(battle))
+            except Exception:
+                mask = np.array([], dtype=bool)
+        return {"observation": obs, "action_mask": mask}
+
+    def _finished_step_result(self):
+        battle1 = getattr(self, "battle1", None)
+        battle2 = getattr(self, "battle2", None)
+        agent1, agent2 = self.possible_agents[0], self.possible_agents[1]
+
+        observations = {
+            agent1: self._obs_for_battle(battle1),
+            agent2: self._obs_for_battle(battle2),
+        }
+        rewards = {
+            agent1: self.calc_reward(battle1) if battle1 is not None else 0.0,
+            agent2: self.calc_reward(battle2) if battle2 is not None else 0.0,
+        }
+
+        term1, trunc1 = self.calc_term_trunc(battle1) if battle1 is not None else (True, False)
+        term2, trunc2 = self.calc_term_trunc(battle2) if battle2 is not None else (True, False)
+        if self._has_finished_battle():
+            term1 = term1 or not trunc1
+            term2 = term2 or not trunc2
+
+        terminated = {agent1: bool(term1), agent2: bool(term2)}
+        truncated = {agent1: bool(trunc1), agent2: bool(trunc2)}
+        infos = self.get_additional_info()
+
+        self.agents = []
+        return observations, rewards, terminated, truncated, infos
 
     # ── Métodos abstractos requeridos por DoublesEnv ─────────────
 
@@ -269,7 +336,7 @@ class VGCEnv(DoublesEnv):
             "stat_mods":      stat_mods,
             "status":         poke.status.name.lower() if poke.status else None,
             "moves":          [m.get("name", "") for m in moves_list],
-            "tera_available": not poke.terastallized,
+            "tera_available": not getattr(poke, "terastallized", getattr(poke, "_terastallized", False)),
             "tera_type":      None,
             "item":           poke.item if hasattr(poke, "item") else None,
         }

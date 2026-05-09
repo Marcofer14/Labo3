@@ -105,8 +105,14 @@ class CurriculumScheduler:
 
     # ── API principal ────────────────────────────────────────────
 
-    def start(self, current_timestep: int = 0) -> StageMetrics:
-        m = StageMetrics(stage=1, started_timestep=current_timestep)
+    def start(self, current_timestep: int = 0, stage: int = 1) -> StageMetrics:
+        self.current_stage = int(stage)
+        if self.current_stage >= 3:
+            self._stage3_start_timestep = max(
+                0,
+                current_timestep - self.cfg.layer_c_ramp_steps,
+            )
+        m = StageMetrics(stage=self.current_stage, started_timestep=current_timestep)
         self.current_metrics = m
         self.history.append(m)
         return m

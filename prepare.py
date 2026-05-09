@@ -56,7 +56,7 @@ def check_deps():
     print("\n[2/9] Dependencias")
     deps = [
         "numpy", "gymnasium", "stable_baselines3", "sb3_contrib",
-        "torch", "poke_env", "matplotlib",
+        "torch", "poke_env", "matplotlib", "rich", "tensorboard",
     ]
     missing = []
     for d in deps:

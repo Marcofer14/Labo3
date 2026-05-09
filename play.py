@@ -13,14 +13,21 @@ from __future__ import annotations
 import argparse
 import asyncio
 import inspect
+import os
+from pathlib import Path
 
 from poke_env.player.player import handle_threaded_coroutines
 
 from login import (
+    BOT_PASSWORD,
+    BOT_USERNAME,
     DEFAULT_TEAM_PATH,
     build_server_config,
     connect_main_bot,
     connect_opponent_bot,
+    load_team,
+    make_account,
+    should_use_team,
 )
 from src.format_resolver import resolve_format
 
@@ -213,16 +220,67 @@ async def run_ladder_games(main_bot, n_battles: int) -> None:
     await main_bot.ladder(n_battles)
 
 
+def connect_ppo_bot(args, battle_format: str, server_cfg):
+    checkpoint = Path(args.checkpoint)
+    if not checkpoint.exists():
+        raise FileNotFoundError(f"No existe el checkpoint: {checkpoint}")
+
+    if args.algorithm == "recurrent_ppo":
+        from sb3_contrib import RecurrentPPO
+        model = RecurrentPPO.load(str(checkpoint))
+    elif args.algorithm == "maskable_ppo":
+        from sb3_contrib import MaskablePPO
+        model = MaskablePPO.load(str(checkpoint))
+    else:
+        raise ValueError(f"Algoritmo desconocido: {args.algorithm}")
+
+    from poke_env import AccountConfiguration
+    from src.training.opponents import LeagueOpponent
+    from src.vgc_env import VGCEnv
+
+    team = load_team(args.team) if should_use_team(battle_format) else None
+    encoder_env = VGCEnv(
+        team_path=args.team,
+        battle_format=battle_format,
+        server_configuration=server_cfg,
+        account_configuration1=AccountConfiguration("EncoderA", None),
+        account_configuration2=AccountConfiguration("EncoderB", None),
+        start_listening=False,
+        choose_on_teampreview=False,
+    )
+
+    account = make_account(
+        os.environ.get("SHOWDOWN_USERNAME", BOT_USERNAME),
+        os.environ.get("SHOWDOWN_PASSWORD", BOT_PASSWORD),
+    )
+
+    return LeagueOpponent(
+        model=model,
+        encoder_env=encoder_env,
+        algorithm=args.algorithm,
+        snapshot_id=-1,
+        deterministic=args.deterministic,
+        account_configuration=account,
+        battle_format=battle_format,
+        team=team,
+        server_configuration=server_cfg,
+        max_concurrent_battles=1,
+    )
+
+
 async def play(args) -> tuple[object, object | None, bool]:
     battle_format = resolve_format(args.format)
     server_cfg = build_server_config(args.server)
 
-    main_bot = connect_main_bot(
-        policy=args.p1,
-        battle_format=battle_format,
-        server=args.server,
-        team_path=args.team,
-    )
+    if args.p1 == "ppo":
+        main_bot = connect_ppo_bot(args, battle_format, server_cfg)
+    else:
+        main_bot = connect_main_bot(
+            policy=args.p1,
+            battle_format=battle_format,
+            server=args.server,
+            team_path=args.team,
+        )
     opponent = None
     if args.mode == "challenge":
         opponent = connect_opponent_bot(
@@ -238,6 +296,8 @@ async def play(args) -> tuple[object, object | None, bool]:
     print(f"  Servidor: {server_cfg.websocket_url}")
     print(f"  Formato:  {battle_format}")
     print(f"  Principal: {args.p1.upper()} ({main_bot.username})")
+    if args.p1 == "ppo":
+        print(f"  Checkpoint: {args.checkpoint}")
     if opponent is None:
         print("  Rival:     ladder")
     else:
@@ -342,7 +402,7 @@ def parse_args():
         "--p1",
         type=str,
         default="greedy",
-        choices=["random", "greedy"],
+        choices=["random", "greedy", "ppo"],
         help="Politica del bot principal (default: greedy)",
     )
     parser.add_argument(
@@ -363,6 +423,24 @@ def parse_args():
         type=str,
         default=str(DEFAULT_TEAM_PATH),
         help="Path al equipo en formato Showdown (default: team.txt)",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default="checkpoints/vgc_final.zip",
+        help="Checkpoint a cargar cuando --p1 ppo (default: checkpoints/vgc_final.zip)",
+    )
+    parser.add_argument(
+        "--algorithm",
+        type=str,
+        default="recurrent_ppo",
+        choices=["recurrent_ppo", "maskable_ppo"],
+        help="Algoritmo del checkpoint PPO (default: recurrent_ppo)",
+    )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Usar acciones deterministicas del modelo PPO",
     )
     parser.add_argument(
         "--battle-timeout",

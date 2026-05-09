@@ -28,8 +28,12 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
+import uuid
 from pathlib import Path
 from typing import Optional, Callable
+
+import numpy as np
 
 
 def check_dependencies() -> bool:
@@ -42,6 +46,8 @@ def check_dependencies() -> bool:
         ("torch",             "torch"),
         ("poke-env",          "poke_env"),
         ("matplotlib",        "matplotlib"),
+        ("rich",              "rich"),
+        ("tensorboard",       "tensorboard"),
     ]
     for pkg, mod in deps:
         try:
@@ -135,6 +141,10 @@ def train(
     algorithm:       Optional[str]   = None,
     n_envs:          Optional[int]   = None,
     total_timesteps: Optional[int]   = None,
+    n_steps:         Optional[int]   = None,
+    batch_size:      Optional[int]   = None,
+    n_epochs:        Optional[int]   = None,
+    start_stage:     Optional[int]   = None,
     skip_tournament: bool            = False,
 ):
     if not check_dependencies():
@@ -145,6 +155,7 @@ def train(
     from poke_env.environment              import SingleAgentWrapper, DoublesEnv
     from poke_env                          import RandomPlayer, MaxBasePowerPlayer
     from poke_env.ps_client                import ServerConfiguration
+    from poke_env.ps_client                import AccountConfiguration
 
     from src.format_resolver import resolve_format
     from src.vgc_env         import VGCEnv, FlatObsWrapper
@@ -176,6 +187,9 @@ def train(
     if algorithm:        tcfg.algorithm       = algorithm
     if n_envs:           tcfg.n_envs          = n_envs
     if total_timesteps:  tcfg.total_timesteps = total_timesteps
+    if n_steps:          tcfg.n_steps         = n_steps
+    if batch_size:       tcfg.batch_size      = batch_size
+    if n_epochs:         tcfg.n_epochs        = n_epochs
 
     base_dir   = Path(__file__).resolve().parent
     team_path  = base_dir / "team.txt"
@@ -188,6 +202,12 @@ def train(
 
     server_host = server or os.environ.get("SHOWDOWN_SERVER", "localhost:8000")
     fmt = resolve_format(battle_format)
+    run_tag = uuid.uuid4().hex[:5]
+    env_generation = 0
+
+    def account(prefix: str, rank: int, role: str) -> AccountConfiguration:
+        name = f"{prefix}{run_tag}{env_generation}{rank}{role}"[:18]
+        return AccountConfiguration(name, None)
 
     print("=" * 60)
     print(f"  VGC Bot - Curriculum + Self-Play League")
@@ -220,10 +240,14 @@ def train(
                 team_path             = team_path,
                 battle_format         = fmt,
                 server_configuration  = server_cfg,
+                account_configuration1 = account("VGC", rank, "a"),
+                account_configuration2 = account("VGC", rank, "b"),
                 start_listening       = True,
-                choose_on_teampreview = True,
+                choose_on_teampreview = False,
             )
             opp = RandomPlayer(
+                account_configuration = account("OPP", rank, "b"),
+                start_listening       = False,
                 battle_format        = fmt,
                 team                 = rival_pool,
                 server_configuration = server_cfg,
@@ -238,8 +262,10 @@ def train(
                 team_path             = team_path,
                 battle_format         = fmt,
                 server_configuration  = server_cfg,
+                account_configuration1 = account("VGC", rank, "a"),
+                account_configuration2 = account("VGC", rank, "b"),
                 start_listening       = True,
-                choose_on_teampreview = True,
+                choose_on_teampreview = False,
             )
             # Encodificador proxy (no se conecta) que LeagueOpponent reusa
             enc_env = encoder_env_factory()
@@ -255,6 +281,8 @@ def train(
                     encoder_env          = enc_env,
                     algorithm            = tcfg.algorithm,
                     snapshot_id          = entry.snapshot_id,
+                    account_configuration = account("LG", rank, "b"),
+                    start_listening       = False,
                     battle_format        = fmt,
                     team                 = rival_pool,
                     server_configuration = server_cfg,
@@ -262,6 +290,8 @@ def train(
                 env_opp_snapshot[rank] = entry.snapshot_id
             else:
                 opp = RandomPlayer(
+                    account_configuration = account("OPP", rank, "b"),
+                    start_listening       = False,
                     battle_format        = fmt,
                     team                 = rival_pool,
                     server_configuration = server_cfg,
@@ -277,6 +307,8 @@ def train(
                 team_path            = team_path,
                 battle_format        = fmt,
                 server_configuration = server_cfg,
+                account_configuration1 = account("ENC", 0, "a"),
+                account_configuration2 = account("ENC", 0, "b"),
                 start_listening      = False,
             )
         except TypeError:
@@ -285,6 +317,8 @@ def train(
                 team_path            = team_path,
                 battle_format        = fmt,
                 server_configuration = server_cfg,
+                account_configuration1 = account("ENC", 0, "a"),
+                account_configuration2 = account("ENC", 0, "b"),
             )
 
     # ── Construcción inicial del VecEnv (heurístico) ─────────────
@@ -323,7 +357,9 @@ def train(
 
     # ── Curriculum + League ──────────────────────────────────────
     scheduler = CurriculumScheduler(tcfg)
-    scheduler.start(current_timestep=0)
+    initial_stage = max(1, min(5, int(start_stage or 1)))
+    initial_timestep = int(getattr(model, "num_timesteps", 0))
+    scheduler.start(current_timestep=initial_timestep, stage=initial_stage)
 
     league = SelfPlayLeague(
         max_size      = tcfg.league_max_size,
@@ -331,6 +367,25 @@ def train(
         min_battles_for_eviction = tcfg.league_min_battles_for_eviction,
         seed          = tcfg.seed,
     )
+
+    def hydrate_league_from_disk():
+        loaded = 0
+        for path in sorted(league_dir.glob("snap_t*.zip")):
+            try:
+                timestep = int(path.stem.split("snap_t", 1)[1])
+            except Exception:
+                timestep = initial_timestep
+            league.add(str(path), timestep, label=f"resume_t{timestep//1000}k")
+            loaded += 1
+        if resume_path and initial_stage >= 4:
+            resume_snapshot = Path(resume_path)
+            if resume_snapshot.exists() and all(Path(e.path) != resume_snapshot for e in league.entries):
+                league.add(str(resume_snapshot), initial_timestep, label=f"resume_current_t{initial_timestep//1000}k")
+                loaded += 1
+        if loaded:
+            print(f"  ✓ League hidratado desde disco: {loaded} snapshot(s)")
+
+    hydrate_league_from_disk()
 
     def push_reward_config_to_envs(cfg):
         for i in range(tcfg.n_envs):
@@ -346,7 +401,7 @@ def train(
 
     def rebuild_envs_with_league():
         """Stage 4 transition: rearma el VecEnv con LeagueOpponents."""
-        nonlocal venv
+        nonlocal venv, env_generation
         if league.is_empty():
             print("  [stage4] league vacío, manteniendo opp heurístico")
             return
@@ -355,11 +410,21 @@ def train(
             venv.close()
         except Exception:
             pass
+        time.sleep(1.0)
+        env_generation += 1
         venv = DummyVecEnv([
             make_league_env(i, model, encoder_env_factory)
             for i in range(tcfg.n_envs)
         ])
         model.set_env(venv)
+        model._last_obs = venv.reset()
+        model._last_episode_starts = np.ones((venv.num_envs,), dtype=bool)
+        if getattr(model, "_last_lstm_states", None) is not None:
+            states = model._last_lstm_states
+            model._last_lstm_states = type(states)(
+                tuple(s.detach().zero_() for s in states.pi),
+                tuple(s.detach().zero_() for s in states.vf),
+            )
         print(f"  [stage4] envs reconstruidos con LeagueOpponent (pool={len(league)})")
 
     def on_stage_advance(sched, new_stage: int):
@@ -396,14 +461,27 @@ def train(
     ])
 
     # ── Entrenamiento ────────────────────────────────────────────
-    print(f"\n  Total timesteps: {tcfg.total_timesteps:,}")
+    if initial_stage >= 4:
+        push_reward_config_to_envs(scheduler.current_reward_config(model.num_timesteps))
+        rebuild_envs_with_league()
+
+    reset_num_timesteps = resume_path is None
+    learn_timesteps = tcfg.total_timesteps
+    if resume_path and model.num_timesteps < tcfg.total_timesteps:
+        learn_timesteps = tcfg.total_timesteps - model.num_timesteps
+
+    print(f"\n  Total timesteps objetivo: {tcfg.total_timesteps:,}")
+    if resume_path:
+        print(f"  Reanudando desde timestep: {model.num_timesteps:,}")
+        print(f"  Timesteps restantes en esta corrida: {learn_timesteps:,}")
     print(f"  Iniciando entrenamiento...\n")
 
     try:
         model.learn(
-            total_timesteps = tcfg.total_timesteps,
-            callback        = callbacks,
-            progress_bar    = True,
+            total_timesteps     = learn_timesteps,
+            callback            = callbacks,
+            progress_bar        = True,
+            reset_num_timesteps = reset_num_timesteps,
         )
     except KeyboardInterrupt:
         print("\n  [!] Entrenamiento interrumpido por usuario")
@@ -461,6 +539,15 @@ if __name__ == "__main__":
                         choices=["recurrent_ppo", "maskable_ppo"])
     parser.add_argument("--n-envs",  type=int, default=None)
     parser.add_argument("--total-timesteps", type=int, default=None)
+    parser.add_argument("--n-steps", type=int, default=None,
+                        help="Override de n_steps de PPO; util para smoke tests cortos")
+    parser.add_argument("--batch-size", type=int, default=None,
+                        help="Override de batch_size de PPO")
+    parser.add_argument("--n-epochs", type=int, default=None,
+                        help="Override de n_epochs de PPO")
+    parser.add_argument("--start-stage", type=int, default=None,
+                        choices=[1, 2, 3, 4, 5],
+                        help="Stage inicial del curriculum al reanudar")
     parser.add_argument("--no-tournament", action="store_true",
                         help="No correr round-robin del league al cierre")
     args = parser.parse_args()
@@ -475,5 +562,9 @@ if __name__ == "__main__":
             algorithm       = args.algorithm,
             n_envs          = args.n_envs,
             total_timesteps = args.total_timesteps,
+            n_steps         = args.n_steps,
+            batch_size      = args.batch_size,
+            n_epochs        = args.n_epochs,
+            start_stage     = args.start_stage,
             skip_tournament = args.no_tournament,
         )

@@ -18,5 +18,7 @@ matplotlib>=3.8.0          # plots del informe final
 
 # ── Utilities ────────────────────────────────────────────────────
 tqdm>=4.66.0               # progress bars for data fetching
+rich>=13.7.0               # required by SB3 when progress_bar=True
+tensorboard>=2.15.0        # required by SB3 tensorboard_log
 python-dotenv>=1.0.0       # manage env variables (Showdown credentials)
 tabulate>=0.9.0            # pretty-print tables (para test_damage.py)

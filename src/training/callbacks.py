@@ -18,6 +18,17 @@ from pathlib import Path
 from stable_baselines3.common.callbacks import BaseCallback
 
 
+def _as_sequence(value) -> list:
+    """Normaliza valores de SB3 que pueden venir como list, tuple, ndarray o None."""
+    if value is None:
+        return []
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
+
+
 # ── 1. LossPlateauCallback ───────────────────────────────────────
 
 class LossPlateauCallback(BaseCallback):
@@ -189,8 +200,8 @@ class WinRateCallback(BaseCallback):
         self._per_opp: dict[str, deque] = {}
 
     def _on_step(self) -> bool:
-        infos = self.locals.get("infos", []) or []
-        dones = self.locals.get("dones", []) or []
+        infos = _as_sequence(self.locals.get("infos"))
+        dones = _as_sequence(self.locals.get("dones"))
         for i, info in enumerate(infos):
             if i >= len(dones) or not dones[i]:
                 continue
@@ -287,8 +298,8 @@ class LeagueResultCallback(BaseCallback):
         self.opponent_provider = opponent_provider
 
     def _on_step(self) -> bool:
-        infos = self.locals.get("infos", []) or []
-        dones = self.locals.get("dones", []) or []
+        infos = _as_sequence(self.locals.get("infos"))
+        dones = _as_sequence(self.locals.get("dones"))
         for i, info in enumerate(infos):
             if i >= len(dones) or not dones[i]:
                 continue

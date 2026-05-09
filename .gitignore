@@ -19,9 +19,18 @@ env/
 # Modelos y checkpoints (pueden ser muy pesados)
 checkpoints/
 *.zip
+*.pt
+*.pth
+*.ckpt
+*.safetensors
 
 # Logs de entrenamiento
 logs/
+runs/
+tb_logs/
+wandb/
+mlruns/
+events.out.tfevents.*
 
 # Reportes generados (HTML + PNG por run)
 reports/
@@ -31,9 +40,10 @@ reports/
 
 # Replays descargados y datasets derivados (pueden crecer mucho)
 data/replays/
+data/alphazero/
 
 # Docker
-.dockerignore
+# .dockerignore debe poder trackearse para evitar contextos Docker gigantes
 
 # IDEs
 .vscode/

@@ -17,6 +17,28 @@ from poke_env.player import Player, RandomPlayer
 from poke_env.battle.double_battle import DoubleBattle
 
 
+def _battle_orders():
+    try:
+        from poke_env.player.battle_order import (
+            DefaultBattleOrder, DoubleBattleOrder, PassBattleOrder, SingleBattleOrder
+        )
+    except ImportError:
+        from poke_env.environment.battle_order import (
+            DefaultBattleOrder, DoubleBattleOrder, PassBattleOrder, SingleBattleOrder
+        )
+    return DefaultBattleOrder, DoubleBattleOrder, PassBattleOrder, SingleBattleOrder
+
+
+def _valid_or_fallback(order, battle: DoubleBattle, slot_idx: int):
+    _, _, PassBattleOrder, _ = _battle_orders()
+    valid = list((getattr(battle, "valid_orders", None) or [[], []])[slot_idx] or [])
+    if any(str(order) == str(v) for v in valid):
+        return order
+    if valid:
+        return valid[0]
+    return PassBattleOrder()
+
+
 # ── Action int → BattleOrder ─────────────────────────────────────
 
 def action_int_to_order(action_int: int, slot_idx: int, battle: DoubleBattle):
@@ -34,38 +56,33 @@ def action_int_to_order(action_int: int, slot_idx: int, battle: DoubleBattle):
         87–106 → move 1..4 con target -2..+2 + Tera
     """
     try:
-        from poke_env.player.battle_order import (
-            BattleOrder, DefaultBattleOrder
-        )
+        DefaultBattleOrder, _, PassBattleOrder, SingleBattleOrder = _battle_orders()
     except ImportError:
-        try:
-            from poke_env.environment.battle_order import (
-                BattleOrder, DefaultBattleOrder
-            )
-        except ImportError:
-            BattleOrder = DefaultBattleOrder = None  # type: ignore
+        DefaultBattleOrder = PassBattleOrder = SingleBattleOrder = None  # type: ignore
 
     a = int(action_int)
 
     # Pass / default / forfeit
-    if a == 0 or a == -2:
-        return DefaultBattleOrder() if DefaultBattleOrder else None
+    if a == 0:
+        return _valid_or_fallback(PassBattleOrder(), battle, slot_idx) if PassBattleOrder else None
+    if a == -2:
+        return _valid_or_fallback(DefaultBattleOrder(), battle, slot_idx) if DefaultBattleOrder else None
     if a == -1:
         # forfeit: no es algo que queramos hacer en self-play
-        return DefaultBattleOrder() if DefaultBattleOrder else None
+        return _valid_or_fallback(DefaultBattleOrder(), battle, slot_idx) if DefaultBattleOrder else None
 
     # Switch
     if 1 <= a <= 6:
         team = list(battle.team.values())
         idx = a - 1
         if idx < 0 or idx >= len(team):
-            return DefaultBattleOrder() if DefaultBattleOrder else None
+            return _valid_or_fallback(DefaultBattleOrder(), battle, slot_idx) if DefaultBattleOrder else None
         target_poke = team[idx]
         if target_poke.fainted or target_poke.active:
-            return DefaultBattleOrder() if DefaultBattleOrder else None
-        if BattleOrder is None:
+            return _valid_or_fallback(DefaultBattleOrder(), battle, slot_idx) if DefaultBattleOrder else None
+        if SingleBattleOrder is None:
             return None
-        return BattleOrder(target_poke)
+        return _valid_or_fallback(SingleBattleOrder(target_poke), battle, slot_idx)
 
     # Move
     if 7 <= a <= 106:
@@ -78,22 +95,30 @@ def action_int_to_order(action_int: int, slot_idx: int, battle: DoubleBattle):
 
         actives = battle.active_pokemon
         if slot_idx >= len(actives) or actives[slot_idx] is None:
-            return DefaultBattleOrder() if DefaultBattleOrder else None
+            return _valid_or_fallback(DefaultBattleOrder(), battle, slot_idx) if DefaultBattleOrder else None
         active = actives[slot_idx]
         moves_list = list(active.moves.values())
         if move_idx >= len(moves_list):
-            return DefaultBattleOrder() if DefaultBattleOrder else None
+            return _valid_or_fallback(DefaultBattleOrder(), battle, slot_idx) if DefaultBattleOrder else None
         move = moves_list[move_idx]
-        if BattleOrder is None:
+        if SingleBattleOrder is None:
             return None
         try:
-            return BattleOrder(move, move_target=target, terastallize=tera)
+            return _valid_or_fallback(
+                SingleBattleOrder(move, move_target=target, terastallize=tera),
+                battle,
+                slot_idx,
+            )
         except TypeError:
             # Versión más vieja: signaturas distintas
             try:
-                return BattleOrder(move, terastallize=tera)
+                return _valid_or_fallback(
+                    SingleBattleOrder(move, terastallize=tera),
+                    battle,
+                    slot_idx,
+                )
             except TypeError:
-                return BattleOrder(move)
+                return _valid_or_fallback(SingleBattleOrder(move), battle, slot_idx)
 
     return DefaultBattleOrder() if DefaultBattleOrder else None
 
@@ -101,12 +126,12 @@ def action_int_to_order(action_int: int, slot_idx: int, battle: DoubleBattle):
 def actions_to_double_order(actions: np.ndarray, battle: DoubleBattle):
     """Construye la DoubleBattleOrder a partir del array MultiDiscrete([107,107])."""
     try:
-        from poke_env.player.battle_order import DoubleBattleOrder
+        DefaultBattleOrder, DoubleBattleOrder, _, _ = _battle_orders()
     except ImportError:
-        try:
-            from poke_env.environment.battle_order import DoubleBattleOrder
-        except ImportError:
-            DoubleBattleOrder = None    # type: ignore
+        DefaultBattleOrder = DoubleBattleOrder = None    # type: ignore
+
+    if getattr(battle, "_wait", False):
+        return DefaultBattleOrder() if DefaultBattleOrder else None
 
     a1, a2 = int(actions[0]), int(actions[1])
     o1 = action_int_to_order(a1, slot_idx=0, battle=battle)
@@ -114,6 +139,16 @@ def actions_to_double_order(actions: np.ndarray, battle: DoubleBattle):
 
     if DoubleBattleOrder is not None:
         try:
+            joined = DoubleBattleOrder.join_orders([o1], [o2])
+            if joined:
+                return joined[0]
+            valid_orders = getattr(battle, "valid_orders", None) or [[], []]
+            fallback_joined = DoubleBattleOrder.join_orders(
+                list(valid_orders[0] or [o1]),
+                list(valid_orders[1] or [o2]),
+            )
+            if fallback_joined:
+                return fallback_joined[0]
             return DoubleBattleOrder(o1, o2)
         except Exception:
             pass
