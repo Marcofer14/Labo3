@@ -24,13 +24,26 @@ src/models/
 *.pth
 *.ckpt
 *.onnx
+*.safetensors
 *.pkl
 *.joblib
 *.zip
+*.npy
+*.npz
+*.parquet
+*.feather
+*.h5
+*.hdf5
 
 # Logs de entrenamiento
 logs/
+reports/
+runs/
+tb_logs/
+wandb/
+mlruns/
 *.log
+events.out.tfevents.*
 
 # Replays descargados y datasets derivados (pueden crecer mucho)
 data/

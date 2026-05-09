@@ -8,6 +8,7 @@ aiohttp>=3.9.0          # async fetching for PokeAPI
 # ── Data & numerics ─────────────────────────────────────────────
 numpy>=1.26.0
 pandas>=2.1.0
+matplotlib>=3.8.0
 
 # ── Reinforcement Learning ───────────────────────────────────────
 gymnasium>=0.29.0

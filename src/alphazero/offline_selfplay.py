@@ -65,6 +65,12 @@ class OfflineShowdownClient:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"offline simulator HTTP {exc.code}: {detail[:1000]}") from exc
+        except TimeoutError as exc:
+            raise RuntimeError(
+                f"offline simulator timed out after {self.timeout:.1f}s on {path}"
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"offline simulator request failed on {path}: {exc}") from exc
         if not result.get("ok"):
             raise RuntimeError(str(result.get("error") or "offline simulator returned ok=false"))
         return result
@@ -154,6 +160,7 @@ class OfflineAlphaZeroSearch:
         temperature: float,
         device: str,
         simulator_max_choices: int,
+        simulator_eval_candidates: int,
         simulator_opponent_policy: str,
         simulator_robust_worst_weight: float,
         require_simulator: bool,
@@ -167,6 +174,7 @@ class OfflineAlphaZeroSearch:
         self.temperature = float(temperature)
         self.device = torch.device(device)
         self.simulator_max_choices = max(1, int(simulator_max_choices))
+        self.simulator_eval_candidates = max(0, int(simulator_eval_candidates or 0))
         self.simulator_opponent_policy = simulator_opponent_policy
         self.simulator_robust_worst_weight = float(simulator_robust_worst_weight)
         self.require_simulator = bool(require_simulator)
@@ -203,31 +211,43 @@ class OfflineAlphaZeroSearch:
         simulator_used = False
         simulator_errors = 0
         simulator_skipped = 0
+        simulator_evaluated_candidates = len(candidates)
+        simulator_pruned_candidates = 0
         simulator_error_details: list[dict[str, Any]] = []
         simulator_error_stage_counts: dict[str, int] = {}
         search_values = np.full(len(candidates), state_value, dtype=np.float32)
 
         if self.depth >= 2:
+            eval_indices = np.arange(len(candidates))
+            eval_candidates = candidates
+            if self.simulator_eval_candidates > 0 and len(candidates) > self.simulator_eval_candidates:
+                # Evaluate only the most promising actions with the exact simulator.
+                # The remaining actions keep the neural value estimate, which avoids
+                # exponential D4/D5 requests while preserving the full action set for MCTS.
+                eval_indices = np.argsort(-priors)[: self.simulator_eval_candidates]
+                eval_candidates = [candidates[int(index)] for index in eval_indices]
+            simulator_evaluated_candidates = len(eval_candidates)
+            simulator_pruned_candidates = len(candidates) - simulator_evaluated_candidates
             try:
                 result = self.client.evaluate(
                     state=snapshot["state"],
                     side=side,
-                    candidates=candidates,
+                    candidates=eval_candidates,
                     depth=max(1, self.depth - 1),
                     max_choices=self.simulator_max_choices,
                     opponent_policy=self.simulator_opponent_policy,
                     robust_worst_weight=self.simulator_robust_worst_weight,
                 )
                 values = result.get("values") or []
-                if len(values) == len(candidates):
-                    search_values = np.asarray(values, dtype=np.float32)
+                if len(values) == len(eval_candidates):
+                    search_values[eval_indices] = np.asarray(values, dtype=np.float32)
                     simulator_used = True
                 elif self.require_simulator:
                     raise RuntimeError(
-                        f"offline simulator returned {len(values)} values for {len(candidates)} candidates"
+                        f"offline simulator returned {len(values)} values for {len(eval_candidates)} candidates"
                     )
                 simulator_errors = int(result.get("simulation_errors") or 0)
-                simulator_skipped = int(result.get("skipped_branches") or 0)
+                simulator_skipped = int(result.get("skipped_branches") or 0) + simulator_pruned_candidates
                 details = result.get("errors")
                 if isinstance(details, list):
                     simulator_error_details = details
@@ -291,6 +311,8 @@ class OfflineAlphaZeroSearch:
             "simulator_repairs": 0,
             "simulator_errors": simulator_errors,
             "simulator_skipped_branches": simulator_skipped,
+            "simulator_evaluated_candidates": simulator_evaluated_candidates,
+            "simulator_pruned_candidates": simulator_pruned_candidates,
             "simulator_error_details": simulator_error_details,
             "simulator_error_stage_counts": simulator_error_stage_counts,
             "selected_message": candidates[selected_index],
@@ -371,6 +393,7 @@ def collect_offline_rollouts(
         temperature=args.temperature,
         device=args.device,
         simulator_max_choices=args.simulator_max_choices,
+        simulator_eval_candidates=args.simulator_eval_candidates,
         simulator_opponent_policy=args.simulator_opponent_policy,
         simulator_robust_worst_weight=args.simulator_robust_worst_weight,
         require_simulator=args.require_simulator,

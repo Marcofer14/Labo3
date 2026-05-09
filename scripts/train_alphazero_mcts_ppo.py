@@ -35,6 +35,7 @@ from src.alphazero.offline_selfplay import collect_offline_rollouts
 from src.alphazero.player import AlphaZeroMCTSPlayer
 from src.alphazero.showdown_simulator import ShowdownSimulationTracker, attach_simulation_tracking
 from src.format_resolver import resolve_format
+from src.metrics.common import add_report_args, write_alphazero_report
 
 
 def anonymous_account(prefix: str) -> AccountConfiguration:
@@ -788,6 +789,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--simulator-timeout", type=float, default=10.0)
     parser.add_argument("--simulator-max-choices", type=int, default=12)
     parser.add_argument(
+        "--simulator-eval-candidates",
+        type=int,
+        default=0,
+        help=(
+            "Cantidad maxima de candidatos de la politica a evaluar con el simulador real. "
+            "0 evalua todos; para D4 conviene usar un valor chico para evitar timeouts."
+        ),
+    )
+    parser.add_argument(
         "--simulator-opponent-policy",
         choices=["minimax", "mean", "robust"],
         default="robust",
@@ -836,7 +846,29 @@ def parse_args() -> argparse.Namespace:
         help="JSONL path for per-decision simulator diagnostics. Defaults next to rollout path.",
     )
     parser.add_argument("--simulator-diagnostics-error-limit", type=int, default=5)
+    add_report_args(parser)
     return parser.parse_args()
+
+
+def maybe_write_metrics_report(args, *, status: str) -> None:
+    if args.no_metrics_report:
+        return
+    try:
+        out = write_alphazero_report(
+            training_log_path=args.training_log_path,
+            rollout_path=args.rollout_path,
+            output_root=args.metrics_report_dir,
+            title=f"AlphaZero MCTS+PPO ({status})",
+        )
+    except Exception as exc:
+        print(f"  [metrics] no se pudo generar reporte: {exc}")
+        return
+    print(f"\n  ✓ Reporte comparable generado en: {out}")
+    print(f"    · {out / 'report.html'}")
+    print(f"    · {out / 'report.json'}")
+    print(f"    · {out / 'common_metrics.json'}")
+    print(f"    · {out / 'league_stats.json'}")
+    print(f"    · {out / 'plots'}")
 
 
 def main() -> int:
@@ -847,9 +879,27 @@ def main() -> int:
         rollout_source=args.rollout_source,
         iterations=args.iterations,
         self_play_games=args.self_play_games,
+        opponent=args.opponent,
+        opponent_cycle=args.opponent_cycle,
+        format=args.format,
+        team=str(args.team),
+        mcts_simulations=args.mcts_simulations,
+        mcts_depth=args.mcts_depth,
+        max_candidates=args.max_candidates,
+        simulator_max_choices=args.simulator_max_choices,
+        simulator_eval_candidates=args.simulator_eval_candidates,
+        simulator_opponent_policy=args.simulator_opponent_policy,
+        simulator_robust_worst_weight=args.simulator_robust_worst_weight,
+        require_simulator=args.require_simulator,
+        lr=args.lr,
+        value_weight=args.value_weight,
+        mcts_weight=args.mcts_weight,
+        entropy_weight=args.entropy_weight,
+        value_search_weight=args.value_search_weight,
         train_window=args.train_window,
         batch_size=args.batch_size,
         epochs=args.epochs,
+        init_checkpoint=str(args.init_checkpoint) if args.init_checkpoint else "",
         rollout_path=str(args.rollout_path),
         output_dir=str(args.output_dir),
     )
@@ -862,8 +912,10 @@ def main() -> int:
             error_type=type(exc).__name__,
             error=str(exc),
         )
+        maybe_write_metrics_report(args, status="failed")
         raise
     append_training_event(args, "run_finished")
+    maybe_write_metrics_report(args, status="finished")
     return 0
 
 

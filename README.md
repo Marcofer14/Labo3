@@ -408,6 +408,32 @@ docker compose run --rm trainer python -u scripts/train_alphazero_mcts_ppo.py --
 
 El script escribe eventos de entrenamiento y memoria en `logs/alphazero_train_events.jsonl` por defecto. Se puede cambiar con `--training-log-path logs/mi_run.jsonl`.
 
+Para entrenamientos profundos (`--mcts-depth 4` o mas), usar `--simulator-eval-candidates` para podar cuantas acciones se evaluan con el simulador exacto en cada decision. Sin esa poda, `--max-candidates 96` junto con `--simulator-max-choices 8` puede crear una evaluacion exponencial demasiado grande para `showdown-sim`.
+
+Al finalizar, tambien genera un reporte comparable con el formato usado por el entrenamiento PPO:
+
+```text
+reports/alphazero_<timestamp>/report.html
+reports/alphazero_<timestamp>/report.json
+reports/alphazero_<timestamp>/common_metrics.json
+reports/alphazero_<timestamp>/league_stats.json
+reports/alphazero_<timestamp>/plots/
+```
+
+`report.html` mantiene la misma estructura general del reporte PPO recurrente: resumen global, detalle por stage, curvas/plots, seccion de league y configuracion del entrenamiento. `common_metrics.json` contiene el bloque normalizado para comparar modelos distintos: familia del modelo, algoritmo, partidas, victorias, derrotas, empates, win rate, reward promedio, largo promedio de partida, losses finales, updates y decisiones totales.
+
+Para regenerar el reporte de un entrenamiento AlphaZero ya existente:
+
+```powershell
+docker compose run --rm trainer python scripts/export_model_metrics.py alphazero --training-log-path logs/alphazero_train_events.jsonl --rollout-path data/alphazero/rollouts.jsonl --output-dir reports/alphazero_common
+```
+
+Para normalizar un `report.json` del PPO recurrente y medirlo con el mismo contrato:
+
+```powershell
+docker compose run --rm trainer python scripts/export_model_metrics.py ppo --report-json reports/run_YYYYMMDD_HHMMSS/report.json --output-dir reports/ppo_common
+```
+
 Si el header de `play.py` muestra `estado=http://showdown:9002`, MCTS esta usando el estado vivo del servidor local. Si no se pasa `--live-state-url`, el codigo vuelve al tracker por historial, que sirve como fallback pero puede divergir por RNG o reparaciones del replay.
 
 Probar el checkpoint contra `random`:

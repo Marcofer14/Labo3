@@ -153,6 +153,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-candidates", type=int, default=96)
     parser.add_argument("--simulator-max-choices", type=int, default=8)
     parser.add_argument(
+        "--simulator-eval-candidates",
+        type=int,
+        default=0,
+        help="Cantidad maxima de candidatos a evaluar con el simulador real. 0 evalua todos.",
+    )
+    parser.add_argument(
         "--simulator-opponent-policy",
         choices=["minimax", "mean", "robust"],
         default="robust",
@@ -188,6 +194,7 @@ def main() -> int:
         temperature=args.temperature,
         device=args.device,
         simulator_max_choices=args.simulator_max_choices,
+        simulator_eval_candidates=args.simulator_eval_candidates,
         simulator_opponent_policy=args.simulator_opponent_policy,
         simulator_robust_worst_weight=args.simulator_robust_worst_weight,
         require_simulator=True,
