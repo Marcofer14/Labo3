@@ -83,6 +83,18 @@ def _metric_value(value: Any) -> str:
     return html.escape(str(value))
 
 
+def _to_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(result) or math.isinf(result):
+        return None
+    return result
+
+
 def _html_table(rows: list[dict[str, Any]], columns: list[tuple[str, str]]) -> str:
     if not rows:
         return "<p>Sin datos.</p>"
@@ -466,39 +478,164 @@ def _maybe_plot(report: dict[str, Any], output_dir: Path) -> dict[str, str]:
         plt.close(fig)
         plot_paths["episodes"] = str(path.relative_to(output_dir))
 
+    def save_row_grid(
+        rows: list[dict[str, Any]],
+        specs: list[tuple[str, str]],
+        filename: str,
+        *,
+        x_key: str,
+        x_label: str,
+        title_prefix: str = "",
+    ) -> str | None:
+        active_specs = []
+        for key, label in specs:
+            if any(_to_float(row.get(key)) is not None for row in rows):
+                active_specs.append((key, label))
+        if not active_specs:
+            return None
+
+        cols = 2 if len(active_specs) > 1 else 1
+        grid_rows = math.ceil(len(active_specs) / cols)
+        fig, axes = plt.subplots(grid_rows, cols, figsize=(5.2 * cols, 3.4 * grid_rows), squeeze=False)
+        for ax, (key, label) in zip(axes.ravel(), active_specs):
+            points = [
+                (_to_float(row.get(x_key)), _to_float(row.get(key)))
+                for row in rows
+                if _to_float(row.get(x_key)) is not None and _to_float(row.get(key)) is not None
+            ]
+            if points:
+                xs, ys = zip(*points)
+                ax.plot(xs, ys, marker="o", linewidth=1.5)
+            ax.set_title(f"{title_prefix}{label}")
+            ax.set_xlabel(x_label)
+            ax.grid(alpha=0.25)
+        for ax in axes.ravel()[len(active_specs) :]:
+            ax.axis("off")
+        fig.tight_layout()
+        path = plots_dir / filename
+        fig.savefig(path)
+        plt.close(fig)
+        return str(path.relative_to(output_dir))
+
+    common = report.get("common_metrics") or {}
+    config = report.get("training_config") or {}
+    model_family = str(common.get("model_family") or "")
+    algorithm = str(common.get("algorithm") or config.get("algorithm") or "")
+    is_cfr = model_family.startswith("cfr") or algorithm.startswith("cfr") or any(
+        "avg_positive_regret" in stage for stage in stages
+    )
     history = report.get("loss_history") or []
-    if history:
+
+    if is_cfr and stages:
+        cfr_rows: list[dict[str, Any]] = []
+        for index, stage in enumerate(stages, start=1):
+            neural = stage.get("neural") or {}
+            model = stage.get("model") or {}
+            cfr_rows.append(
+                {
+                    "iteration": stage.get("stage") or index,
+                    "avg_positive_regret": stage.get("avg_positive_regret", stage.get("final_loss")),
+                    "strategy_entropy": stage.get("avg_strategy_entropy", stage.get("final_policy_loss")),
+                    "neural_loss": neural.get("loss"),
+                    "neural_policy_loss": neural.get("policy_loss"),
+                    "neural_value_loss": neural.get("value_loss"),
+                    "avg_reward": stage.get("avg_reward"),
+                    "win_rate": stage.get("win_rate"),
+                    "information_sets": model.get("information_sets"),
+                    "visited_information_sets": model.get("visited_information_sets"),
+                    "total_visits": model.get("total_visits"),
+                    "max_positive_regret": model.get("max_positive_regret"),
+                }
+            )
+        loss_path = save_row_grid(
+            cfr_rows,
+            [
+                ("avg_positive_regret", "avg positive regret"),
+                ("strategy_entropy", "strategy entropy"),
+                ("neural_loss", "neural total loss"),
+                ("neural_policy_loss", "neural policy loss"),
+                ("neural_value_loss", "neural value loss"),
+                ("avg_reward", "avg reward"),
+            ],
+            "loss_curves.png",
+            x_key="iteration",
+            x_label="iteration",
+        )
+        if loss_path:
+            plot_paths["loss"] = loss_path
+        model_path = save_row_grid(
+            cfr_rows,
+            [
+                ("information_sets", "information sets"),
+                ("visited_information_sets", "visited information sets"),
+                ("total_visits", "total visits"),
+                ("max_positive_regret", "max positive regret"),
+            ],
+            "cfr_model_curves.png",
+            x_key="iteration",
+            x_label="iteration",
+        )
+        if model_path:
+            plot_paths["model"] = model_path
+    elif history:
         metric_specs = [
             ("value_loss", "value_loss"),
             ("policy_loss", "policy_loss"),
             ("mcts_ce", "mcts_ce"),
             ("entropy", "entropy"),
         ]
-        by_iteration: dict[int, list[dict[str, Any]]] = defaultdict(list)
-        for row in history:
-            by_iteration[int(row.get("iteration") or 0)].append(row)
+        active_specs = [
+            (key, label)
+            for key, label in metric_specs
+            if any(_to_float(row.get(key)) is not None for row in history)
+        ]
+        if active_specs:
+            by_iteration: dict[int, list[dict[str, Any]]] = defaultdict(list)
+            for row in history:
+                try:
+                    iteration = int(row.get("iteration") or 0)
+                except (TypeError, ValueError):
+                    iteration = 0
+                by_iteration[iteration].append(row)
 
-        fig, axes = plt.subplots(2, 2, figsize=(10, 7))
-        for ax, (key, label) in zip(axes.ravel(), metric_specs):
-            for iteration, rows in sorted(by_iteration.items()):
-                values: list[float] = []
-                for row in rows:
-                    raw = row.get(key)
-                    try:
-                        values.append(float(raw))
-                    except (TypeError, ValueError):
-                        values.append(float("nan"))
-            if any(not math.isnan(value) for value in values):
-                ax.plot(range(len(values)), values, label=f"stage {iteration}")
-            ax.set_title(label)
-            ax.set_xlabel("epoch")
-            if ax.get_lines():
-                ax.legend(fontsize=7)
-        fig.tight_layout()
-        path = plots_dir / "loss_curves.png"
-        fig.savefig(path)
-        plt.close(fig)
-        plot_paths["loss"] = str(path.relative_to(output_dir))
+            if all(len(rows) == 1 for rows in by_iteration.values()):
+                rows = [items[0] for _, items in sorted(by_iteration.items())]
+                path = save_row_grid(
+                    rows,
+                    active_specs,
+                    "loss_curves.png",
+                    x_key="iteration",
+                    x_label="stage",
+                )
+                if path:
+                    plot_paths["loss"] = path
+            else:
+                cols = 2 if len(active_specs) > 1 else 1
+                grid_rows = math.ceil(len(active_specs) / cols)
+                fig, axes = plt.subplots(grid_rows, cols, figsize=(5.2 * cols, 3.4 * grid_rows), squeeze=False)
+                for ax, (key, label) in zip(axes.ravel(), active_specs):
+                    for iteration, rows in sorted(by_iteration.items()):
+                        points = []
+                        for index, row in enumerate(rows, start=1):
+                            x_value = _to_float(row.get("epoch"))
+                            y_value = _to_float(row.get(key))
+                            if y_value is not None:
+                                points.append((x_value if x_value is not None else index, y_value))
+                        if points:
+                            xs, ys = zip(*points)
+                            ax.plot(xs, ys, label=f"stage {iteration}")
+                    ax.set_title(label)
+                    ax.set_xlabel("epoch")
+                    ax.grid(alpha=0.25)
+                    if ax.get_lines():
+                        ax.legend(fontsize=7)
+                for ax in axes.ravel()[len(active_specs) :]:
+                    ax.axis("off")
+                fig.tight_layout()
+                path = plots_dir / "loss_curves.png"
+                fig.savefig(path)
+                plt.close(fig)
+                plot_paths["loss"] = str(path.relative_to(output_dir))
 
     stage_breakdowns = [
         (str(stage.get("stage")), stage.get("reward_breakdown") or {})
@@ -542,6 +679,7 @@ def _write_html(report: dict[str, Any], output_dir: Path, plot_paths: dict[str, 
     common = report.get("common_metrics") or {}
     stages = list(report.get("stages") or [])
     config = report.get("training_config") or {}
+    extra_meta = report.get("extra_meta") or {}
     league = report.get("league") or []
     timestamp = report.get("timestamp") or _now_stamp()
     html_parts = [
@@ -559,7 +697,31 @@ def _write_html(report: dict[str, Any], output_dir: Path, plot_paths: dict[str, 
         f"<div class='metric'><span class='label'>Episodios totales:</span> {_metric_value(common.get('total_games'))}</div>",
         f"<div class='metric'><span class='label'>Updates PPO:</span> {_metric_value(common.get('total_updates'))}</div>",
         f"<div class='metric'><span class='label'>Win rate global:</span> {_metric_value(common.get('win_rate'))}</div>",
+        f"<div class='metric'><span class='label'>Win rate ajustado por score:</span> {_metric_value(common.get('score_adjusted_win_rate'))}</div>",
+        f"<div class='metric'><span class='label'>Partidas truncadas:</span> {_metric_value(common.get('truncated_games'))}</div>",
         f"<div class='metric'><span class='label'>Reward promedio:</span> {_metric_value(common.get('avg_reward'))}</div>",
+        f"<div class='metric'><span class='label'>Score promedio:</span> {_metric_value(common.get('avg_score'))}</div>",
+    ]
+    if extra_meta:
+        html_parts.extend(
+            [
+                "<h2>Metadata del reporte</h2>",
+                _html_table(
+                    [
+                        {
+                            "key": key,
+                            "value": json.dumps(value, ensure_ascii=True, default=_json_default)
+                            if isinstance(value, (dict, list))
+                            else value,
+                        }
+                        for key, value in sorted(extra_meta.items())
+                    ],
+                    [("key", "key"), ("value", "value")],
+                ),
+            ]
+        )
+    html_parts.extend(
+        [
         "<h2>Metricas comunes normalizadas</h2>",
         _html_table(
             [common],
@@ -569,7 +731,12 @@ def _write_html(report: dict[str, Any], output_dir: Path, plot_paths: dict[str, 
                 ("wins", "wins"),
                 ("losses", "losses"),
                 ("draws", "draws"),
+                ("truncated_games", "truncated_games"),
+                ("score_adjusted_wins", "score_adjusted_wins"),
+                ("score_adjusted_losses", "score_adjusted_losses"),
+                ("score_adjusted_win_rate", "score_adjusted_win_rate"),
                 ("avg_episode_length", "avg_episode_length"),
+                ("avg_score", "avg_score"),
                 ("final_loss", "final_loss"),
                 ("final_policy_loss", "final_policy_loss"),
                 ("final_value_loss", "final_value_loss"),
@@ -577,7 +744,8 @@ def _write_html(report: dict[str, Any], output_dir: Path, plot_paths: dict[str, 
             ],
         ),
         "<h2>Detalle por stage</h2>",
-    ]
+        ]
+    )
 
     for stage in stages:
         html_parts.extend(
@@ -589,7 +757,10 @@ def _write_html(report: dict[str, Any], output_dir: Path, plot_paths: dict[str, 
                 f"<p><strong>Oponente/curriculum:</strong> {_escape(stage.get('opponent'))}</p>",
                 f"<div class='metric'><span class='label'>Episodios:</span> {_metric_value(stage.get('n_episodes'))}</div>",
                 f"<div class='metric'><span class='label'>Win rate:</span> {_metric_value(stage.get('win_rate'))}</div>",
+                f"<div class='metric'><span class='label'>Win rate ajustado por score:</span> {_metric_value(stage.get('score_adjusted_win_rate'))}</div>",
+                f"<div class='metric'><span class='label'>Partidas truncadas:</span> {_metric_value(stage.get('truncated_games'))}</div>",
                 f"<div class='metric'><span class='label'>Reward avg:</span> {_metric_value(stage.get('avg_reward'))}</div>",
+                f"<div class='metric'><span class='label'>Score avg:</span> {_metric_value(stage.get('avg_score'))}</div>",
                 f"<div class='metric'><span class='label'>Episodio avg len:</span> {_metric_value(stage.get('avg_episode_length'))}</div>",
                 f"<div class='metric'><span class='label'>Updates PPO:</span> {_metric_value(stage.get('n_updates'))}</div>",
                 f"<div class='metric'><span class='label'>value_loss final:</span> {_metric_value(stage.get('final_value_loss'))}</div>",
@@ -607,17 +778,23 @@ def _write_html(report: dict[str, Any], output_dir: Path, plot_paths: dict[str, 
             rows = [{"metric": key, "value": value} for key, value in sorted(simulator.items())]
             html_parts.append("<h4>Simulador</h4>")
             html_parts.append(_html_table(rows, [("metric", "metric"), ("value", "value")]))
+        neural = stage.get("neural") or {}
+        if neural:
+            rows = [{"metric": key, "value": value} for key, value in sorted(neural.items())]
+            html_parts.append("<h4>Red prior CFR</h4>")
+            html_parts.append(_html_table(rows, [("metric", "metric"), ("value", "value")]))
         html_parts.append("</div>")
 
     html_parts.append("<h2>Curvas y plots</h2>")
     if plot_paths:
         plot_titles = {
             "loss": "Loss / entrenamiento",
+            "model": "Modelo / tabla CFR",
             "winrate": "Win rate por stage",
             "breakdown": "Reward breakdown",
             "episodes": "Reward promedio",
         }
-        for key in ("loss", "winrate", "breakdown", "episodes"):
+        for key in ("loss", "model", "winrate", "breakdown", "episodes"):
             rel = plot_paths.get(key)
             if not rel:
                 continue

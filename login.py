@@ -73,8 +73,19 @@ def make_policy_player(
         from src.alphazero.player import AlphaZeroMCTSPlayer
 
         return AlphaZeroMCTSPlayer(**kwargs, **(policy_kwargs or {}))
+    if kind == "cfr":
+        from src.cfr.player import CFRPlayer
 
-    raise ValueError(f"Tipo desconocido: {kind}. Opciones: random, greedy, alphazero_mcts")
+        return CFRPlayer(**kwargs, **(policy_kwargs or {}))
+    if kind in {"ppo", "ppo_recurrent"}:
+        from src.ppo_player import PPOPolicyPlayer
+
+        return PPOPolicyPlayer(**kwargs, **(policy_kwargs or {}))
+
+    raise ValueError(
+        "Tipo desconocido: "
+        f"{kind}. Opciones: random, greedy, alphazero_mcts, cfr, ppo_recurrent"
+    )
 
 
 def make_account(username: str, password: str | None) -> AccountConfiguration:

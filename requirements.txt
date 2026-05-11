@@ -13,6 +13,7 @@ matplotlib>=3.8.0
 # ── Reinforcement Learning ───────────────────────────────────────
 gymnasium>=0.29.0
 stable-baselines3>=2.2.0   # PPO, DQN, A2C — all compatible with gymnasium
+sb3-contrib>=2.2.0         # RecurrentPPO and other SB3 contributed algorithms
 torch>=2.2.0               # PyTorch backend for SB3
 
 # ── Utilities ────────────────────────────────────────────────────

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>VGC Bot · Lab III · Presentación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --p-red: #DC0A2D; --p-red-d: #A8082A;
+    --p-yellow: #FFCB05; --p-yellow-d: #B8920A;
+    --p-blue: #3D7DCA; --p-cyan: #5DBCD2;
+    --p-green: #7AC74C; --p-purple: #A33EA1;
+    --p-pink: #EE99AC; --p-orange: #E2BF65;
+    --p-gold: #B7A237;
+    --p-dark: #2A2A3E; --p-darker: #1A1A2E; --p-deep: #0F0F1F;
+    --p-card: #FFFFFF; --p-card-bg: #F0F0F0;
+    --p-text: #212121; --p-text-d: #4A4A4A; --p-text-dim: #7A7A7A;
+    --t-fire: #EE8130; --t-water: #6390F0; --t-electric: #F7D02C;
+    --t-grass: #7AC74C; --t-psychic: #F95587; --t-fighting: #C22E28;
+    --t-ghost: #735797; --t-steel: #B7B7CE; --t-dark: #705746;
+    --t-fairy: #D685AD; --t-dragon: #6F35FC; --t-ice: #96D9D6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--p-deep);
+    color: var(--p-text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .pokeball-bg {
+    position: fixed; width: 800px; height: 800px;
+    right: -300px; bottom: -300px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at center, transparent 25%, var(--p-darker) 25%, var(--p-darker) 30%, transparent 30%),
+      linear-gradient(to bottom, var(--p-red-d) 0%, var(--p-red-d) 48%, var(--p-darker) 48%, var(--p-darker) 52%, #2A2A3E 52%);
+    opacity: 0.08; z-index: 0; pointer-events: none;
+  }
+
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 70px 50px 50px;
+    display: flex; flex-direction: column;
+    background: linear-gradient(135deg, var(--p-darker) 0%, var(--p-deep) 100%);
+    color: var(--p-text);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    opacity: 0; transform: translateX(40px); pointer-events: none;
+  }
+  .slide.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
+
+  /* Header */
+  .pokedex-header {
+    position: absolute; top: 0; left: 0; right: 0; height: 56px;
+    background: linear-gradient(to bottom, var(--p-red) 0%, var(--p-red-d) 100%);
+    padding: 0 30px;
+    display: flex; align-items: center; gap: 18px;
+    border-bottom: 4px solid var(--p-yellow); z-index: 10;
+  }
+  .pokedex-led {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #93C5FD 0%, #3B82F6 60%, #1E40AF 100%);
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.7);
+    border: 3px solid white; flex-shrink: 0;
+  }
+  .pokedex-led.green { background: radial-gradient(circle at 30% 30%, #86EFAC 0%, #22C55E 60%, #14532D 100%); width: 13px; height: 13px; border-width: 2px; }
+  .pokedex-led.yellow { background: radial-gradient(circle at 30% 30%, #FDE68A 0%, #EAB308 60%, #713F12 100%); width: 13px; height: 13px; border-width: 2px; }
+  .pokedex-title { font-family: 'Press Start 2P', monospace; color: white; font-size: 0.65rem; letter-spacing: 1px; text-shadow: 2px 2px 0 var(--p-red-d); }
+  .pokedex-spacer { flex: 1; }
+  .pokedex-meta { font-family: 'Press Start 2P', monospace; color: white; font-size: 0.52rem; letter-spacing: 1px; opacity: 0.85; }
+
+  /* Footer */
+  .pokedex-footer {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 32px;
+    background: var(--p-darker);
+    border-top: 2px solid var(--p-yellow);
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 14px; z-index: 10;
+    color: var(--p-card-bg); font-size: 0.65rem;
+  }
+  .pokedex-footer strong { color: var(--p-yellow); font-weight: 700; }
+  .slide-counter { margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 0.55rem; color: var(--p-yellow); }
+
+  .progress-bar { position: absolute; bottom: 32px; left: 0; right: 0; height: 3px; background: var(--p-darker); z-index: 9; }
+  .progress-fill { height: 100%; background: linear-gradient(to right, var(--p-yellow), var(--p-red)); transition: width 0.5s ease; }
+
+  /* Type badges */
+  .type-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .type-badge {
+    display: inline-flex; padding: 4px 10px;
+    border-radius: 999px;
+    font-family: 'Press Start 2P', monospace; font-size: 0.45rem;
+    color: white; text-transform: uppercase; letter-spacing: 1px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.25); text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+  }
+  .tb-fire     { background: var(--t-fire); }
+  .tb-water    { background: var(--t-water); }
+  .tb-electric { background: var(--t-electric); color: #5A4400; text-shadow: none;}
+  .tb-grass    { background: var(--t-grass); }
+  .tb-psychic  { background: var(--t-psychic); }
+  .tb-ghost    { background: var(--t-ghost); }
+  .tb-steel    { background: var(--t-steel); color: #1A1A1A; text-shadow: none;}
+  .tb-dark     { background: var(--t-dark); }
+  .tb-fairy    { background: var(--t-fairy); color: #5A2030; text-shadow: none;}
+  .tb-dragon   { background: var(--t-dragon); }
+  .tb-ice      { background: var(--t-ice); color: #1A4A4A; text-shadow: none;}
+
+  /* Cards */
+  .card {
+    background: var(--p-card);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 0 0 3px var(--p-gold), 0 0 0 5px var(--p-darker), 0 6px 0 rgba(0,0,0,0.3);
+    color: var(--p-text);
+  }
+  .card.dark {
+    background: var(--p-darker);
+    color: var(--p-card-bg);
+    box-shadow: 0 0 0 3px var(--p-yellow), 0 0 0 5px var(--p-red-d), 0 6px 0 rgba(0,0,0,0.3);
+  }
+  .card-h {
+    font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+    color: var(--p-red); text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 10px;
+    border-bottom: 2px dashed var(--p-card-bg); padding-bottom: 6px;
+  }
+  .card.dark .card-h { color: var(--p-yellow); border-bottom-color: rgba(255,203,5,0.2); }
+
+  /* Layout */
+  .slide-content {
+    flex: 1; display: flex; flex-direction: column; gap: 12px;
+    overflow: hidden;
+  }
+  .slide-title {
+    font-family: 'Press Start 2P', monospace;
+    color: var(--p-yellow); font-size: 1.05rem;
+    text-shadow: 3px 3px 0 var(--p-red-d), 5px 5px 0 rgba(0,0,0,0.4);
+    margin-bottom: 4px; letter-spacing: 1px;
+  }
+  .slide-subtitle {
+    color: var(--p-card-bg); font-size: 0.85rem;
+    font-weight: 500; opacity: 0.9;
+  }
+  .pokedex-id {
+    font-family: 'Press Start 2P', monospace; font-size: 0.7rem;
+    color: var(--p-yellow); margin-bottom: 4px; letter-spacing: 2px;
+  }
+
+  .row { display: grid; gap: 12px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .row-2-3 { grid-template-columns: 2fr 3fr; }
+  .row-3-2 { grid-template-columns: 3fr 2fr; }
+
+  /* Pipeline */
+  .pipeline {
+    display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap;
+  }
+  .pipe-box {
+    flex: 1; min-width: 130px; background: white;
+    border: 3px solid var(--p-darker); border-radius: 10px;
+    padding: 10px 12px; box-shadow: 0 4px 0 var(--p-gold);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .pipe-box.b1 { border-color: var(--t-water); box-shadow: 0 4px 0 var(--t-water); }
+  .pipe-box.b2 { border-color: var(--t-electric); box-shadow: 0 4px 0 var(--t-electric); }
+  .pipe-box.b3 { border-color: var(--t-fire); box-shadow: 0 4px 0 var(--t-fire); }
+  .pipe-box.b4 { border-color: var(--t-grass); box-shadow: 0 4px 0 var(--t-grass); }
+  .pipe-box.b5 { border-color: var(--t-psychic); box-shadow: 0 4px 0 var(--t-psychic); }
+  .pipe-num {
+    display: inline-block; width: 20px; height: 20px; line-height: 20px;
+    text-align: center; background: var(--p-darker); color: var(--p-yellow);
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem; border-radius: 50%;
+  }
+  .pipe-title {
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    color: var(--p-darker); text-transform: uppercase; line-height: 1.4;
+  }
+  .pipe-desc { font-size: 0.72rem; color: var(--p-text-d); line-height: 1.4; }
+  .pipe-arrow { align-self: center; color: var(--p-yellow); font-size: 1.3rem; font-weight: 800; }
+
+  /* Tables */
+  table.pkm-tbl { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  table.pkm-tbl thead th {
+    background: var(--p-darker); color: var(--p-yellow);
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 7px 9px; text-align: left; border-bottom: 3px solid var(--p-yellow);
+  }
+  table.pkm-tbl tbody td {
+    padding: 5px 9px; border-bottom: 1px dashed var(--p-card-bg); color: var(--p-text);
+  }
+  table.pkm-tbl tbody tr:nth-child(even) td { background: var(--p-card-bg); }
+  table.pkm-tbl code { background: var(--p-darker); color: var(--p-yellow); padding: 2px 5px; border-radius: 4px; font-size: 0.75rem; }
+
+  /* Plot images */
+  .plot-img {
+    width: 100%; max-height: 280px; object-fit: contain;
+    background: white; border: 3px solid var(--p-yellow);
+    border-radius: 8px; padding: 6px;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+  }
+  .plot-cap {
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    color: var(--p-yellow); text-align: center; margin-top: 6px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* Big stat number */
+  .big-stat {
+    text-align: center; padding: 16px 12px;
+    background: white; border-radius: 14px;
+    box-shadow: 0 0 0 3px var(--p-gold), 0 0 0 5px var(--p-darker), 0 6px 0 rgba(0,0,0,0.3);
+  }
+  .big-stat .num {
+    font-family: 'Press Start 2P', monospace; font-size: 1.6rem;
+    color: var(--p-red); line-height: 1;
+  }
+  .big-stat .lbl {
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    color: var(--p-text-d); margin-top: 6px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* Bullets */
+  .bullets { list-style: none; padding: 0; }
+  .bullets li {
+    padding: 4px 0 4px 20px; position: relative;
+    font-size: 0.8rem; color: var(--p-text); line-height: 1.4;
+  }
+  .bullets li::before {
+    content: "▶"; position: absolute; left: 2px;
+    color: var(--p-red); font-size: 0.6rem;
+  }
+  .card.dark .bullets li { color: var(--p-card-bg); }
+  .card.dark .bullets li::before { color: var(--p-yellow); }
+
+  .bullets.dual li {
+    display: grid; grid-template-columns: 90px 1fr; gap: 8px;
+    padding: 4px 0; border-bottom: 1px dashed var(--p-card-bg);
+  }
+  .bullets.dual li::before { display: none; }
+  .bullets.dual li b {
+    font-family: 'Press Start 2P', monospace; font-size: 0.46rem;
+    color: var(--p-red); text-transform: uppercase; line-height: 1.3; padding-top: 2px;
+  }
+  .card.dark .bullets.dual li b { color: var(--p-yellow); }
+  .card.dark .bullets.dual li { border-bottom-color: rgba(255,255,255,0.1); }
+
+  /* Stage chain */
+  .stage-chain { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+  .stage-pill {
+    flex: 1; background: white;
+    border: 3px solid var(--p-darker); border-radius: 12px;
+    padding: 10px 8px; text-align: center;
+    box-shadow: 0 4px 0 var(--p-gold); min-width: 0;
+  }
+  .stage-pill.s1 { border-color: var(--t-water); box-shadow: 0 4px 0 var(--t-water); }
+  .stage-pill.s2 { border-color: var(--t-grass); box-shadow: 0 4px 0 var(--t-grass); }
+  .stage-pill.s3 { border-color: var(--t-electric); box-shadow: 0 4px 0 var(--t-electric); }
+  .stage-pill.s4 { border-color: var(--t-fire); box-shadow: 0 4px 0 var(--t-fire); }
+  .stage-pill.s5 { border-color: var(--t-psychic); box-shadow: 0 4px 0 var(--t-psychic); }
+  .stage-num { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: var(--p-darker); margin-bottom: 4px; }
+  .stage-name { font-size: 0.72rem; font-weight: 700; color: var(--p-text); margin-bottom: 3px; }
+  .stage-desc { font-size: 0.65rem; color: var(--p-text-dim); line-height: 1.3; }
+  .stage-arrow { color: var(--p-yellow); font-size: 1.1rem; font-weight: 800; flex-shrink: 0; }
+
+  /* Reward layers */
+  .reward-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .reward-card {
+    background: white; border-radius: 10px; padding: 10px;
+    border-top: 5px solid;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.15);
+  }
+  .reward-card.layer-a { border-top-color: var(--p-green); }
+  .reward-card.layer-b { border-top-color: var(--p-blue); }
+  .reward-card.layer-c { border-top-color: var(--p-purple); }
+  .reward-card.layer-d { border-top-color: var(--p-pink); }
+  .reward-letter { font-family: 'Press Start 2P', monospace; font-size: 1rem; color: var(--p-darker); margin-bottom: 3px; }
+  .reward-name { font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: var(--p-text-d); text-transform: uppercase; margin-bottom: 6px; }
+  .reward-count { font-size: 1.3rem; font-weight: 800; color: var(--p-text); line-height: 1; margin-bottom: 3px; }
+  .reward-count small { font-size: 0.65rem; font-weight: 500; color: var(--p-text-dim); }
+  .reward-desc { font-size: 0.65rem; color: var(--p-text-dim); line-height: 1.35; }
+
+  /* Cover */
+  #cover { text-align: center; align-items: center; justify-content: center; padding: 70px 50px 50px; }
+  #cover .slide-content { align-items: center; justify-content: center; }
+  .cover-pokeball {
+    width: 160px; height: 160px; border-radius: 50%;
+    background:
+      radial-gradient(circle at center, white 22%, var(--p-darker) 22%, var(--p-darker) 28%, white 28%, white 32%, transparent 32%),
+      linear-gradient(to bottom, var(--p-red) 0%, var(--p-red) 48%, var(--p-darker) 48%, var(--p-darker) 52%, white 52%);
+    border: 7px solid var(--p-darker);
+    box-shadow: 0 0 50px rgba(220, 10, 45, 0.6), inset 0 0 30px rgba(0,0,0,0.2);
+    margin-bottom: 22px; animation: spin 8s linear infinite;
+  }
+  @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  .cover-title {
+    font-family: 'Press Start 2P', monospace; font-size: 1.9rem;
+    color: var(--p-yellow);
+    text-shadow: 4px 4px 0 var(--p-red), 8px 8px 0 var(--p-darker), 11px 11px 30px rgba(0,0,0,0.6);
+    line-height: 1.4; margin-bottom: 14px; letter-spacing: 2px;
+  }
+  .cover-subtitle { color: white; font-size: 1rem; margin-bottom: 30px; opacity: 0.9; }
+  .cover-trainers { display: flex; gap: 26px; justify-content: center; margin-bottom: 22px; }
+  .trainer-card {
+    background: white; border-radius: 12px; padding: 12px 22px;
+    box-shadow: 0 0 0 3px var(--p-gold), 0 0 0 5px var(--p-darker), 0 6px 0 rgba(0,0,0,0.3);
+    min-width: 210px;
+  }
+  .trainer-role { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: var(--p-red); text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+  .trainer-name { font-size: 0.95rem; font-weight: 700; color: var(--p-darker); }
+  .cover-meta { color: var(--p-card-bg); font-size: 0.8rem; opacity: 0.8; margin-top: 14px; }
+  .cover-meta strong { color: var(--p-yellow); }
+
+  /* Highlights */
+  .highlight-card {
+    background: linear-gradient(135deg, var(--p-yellow) 0%, #FFE066 100%);
+    border-radius: 14px; padding: 14px 18px;
+    box-shadow: 0 0 0 3px var(--p-darker), 0 0 0 5px var(--p-yellow), 0 6px 0 rgba(0,0,0,0.4);
+  }
+  .highlight-card .card-h { color: var(--p-darker); border-bottom-color: rgba(42,42,62,0.3); }
+  .highlight-card p, .highlight-card li { color: var(--p-darker); }
+
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 3px; font-size: 0.85em;
+  }
+  .card.dark code { background: rgba(255,255,255,0.1); color: var(--p-yellow); }
+
+  /* Nav hint */
+  .nav-hint {
+    position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%);
+    color: var(--p-yellow); font-family: 'Press Start 2P', monospace;
+    font-size: 0.5rem; z-index: 20;
+    background: rgba(15,15,31,0.85); padding: 6px 12px;
+    border-radius: 6px; border: 1px solid var(--p-yellow); opacity: 0.7;
+    animation: fadeOut 6s forwards 4s;
+  }
+  @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+
+  /* WR bar inline */
+  .wr-row {
+    display: grid; grid-template-columns: 110px 1fr 60px;
+    align-items: center; gap: 10px; padding: 4px 0;
+  }
+  .wr-name {
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    color: var(--p-text-d); text-transform: uppercase;
+  }
+  .wr-bar-bg {
+    height: 14px; background: var(--p-card-bg); border-radius: 7px;
+    overflow: hidden; border: 1px solid var(--p-text-dim);
+  }
+  .wr-bar-fill { height: 100%; border-radius: 7px; transition: width 0.5s ease; }
+  .wr-bar-fill.low    { background: linear-gradient(to right, #DC0A2D, #FF4F4F); }
+  .wr-bar-fill.med    { background: linear-gradient(to right, #FFCB05, #FFE066); }
+  .wr-bar-fill.high   { background: linear-gradient(to right, #7AC74C, #B5E48C); }
+  .wr-val {
+    font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+    color: var(--p-text); text-align: right;
+  }
+  .card.dark .wr-name, .card.dark .wr-val { color: var(--p-card-bg); }
+  .card.dark .wr-bar-bg { background: rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+
+<div class="pokeball-bg"></div>
+
+<div class="deck">
+
+<!-- ════════════════════════════════════════════════════════════
+     SLIDE 0: COVER
+════════════════════════════════════════════════════════════ -->
+<div class="slide active" id="cover">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">VGC BOT · LAB III</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">UCA · 2026</div>
+  </div>
+
+  <div class="slide-content">
+    <div class="cover-pokeball"></div>
+    <div class="cover-title">RESOLVIENDO<br>EL VGC</div>
+    <div class="cover-subtitle">Dos arquitecturas de IA para Pokémon competitivo doubles</div>
+
+    <div class="cover-trainers">
+      <div class="trainer-card">
+        <div class="trainer-role">🎮 Trainer</div>
+        <div class="trainer-name">Marco Fernández</div>
+      </div>
+      <div class="trainer-card">
+        <div class="trainer-role">🎮 Trainer</div>
+        <div class="trainer-name">Rodrigo Sánchez López</div>
+      </div>
+      <div class="trainer-card">
+        <div class="trainer-role">👨‍🏫 Professor</div>
+        <div class="trainer-name">Julio Paredes</div>
+      </div>
+    </div>
+
+    <div class="cover-meta">
+      <strong>Laboratorio III</strong> · Universidad Católica Argentina · 2026
+    </div>
+  </div>
+
+  <div class="pokedex-footer">
+    <strong>VGC BOT</strong> · Lab III · Marco Fernández · Rodrigo Sánchez López · Tutor: J. Paredes
+    <span class="slide-counter">00 / 09</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SLIDE 1: INTRODUCCIÓN AL PROBLEMA
+════════════════════════════════════════════════════════════ -->
+<div class="slide" id="s1">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 1 · INTRODUCCIÓN</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">EL PROBLEMA</div>
+  </div>
+
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 01</div>
+      <div class="slide-title">EL PROBLEMA</div>
+      <div class="slide-subtitle">VGC competitivo — el ajedrez con información incompleta de los videojuegos</div>
+    </div>
+
+    <div class="row row-2">
+      <div class="card">
+        <div class="card-h">🎯 ¿Qué es VGC?</div>
+        <p style="font-size: 0.82rem; color: var(--p-text-d); line-height: 1.5;">
+          Formato oficial de Pokémon competitivo en <strong>doubles</strong>: cada jugador trae 6 Pokémon, lleva 4 a batalla, y combate con 2 activos simultáneos. La <strong>Regulación I 2026</strong> permite 2 <em>restricteds</em>, lo que abre el meta a Pokémon como Calyrex-Ice, Miraidon, Kyogre o Groudon.
+        </p>
+        <ul class="bullets" style="margin-top: 8px;">
+          <li>Equipos de 6 con elección de 4 al inicio (<strong>team preview</strong>)</li>
+          <li>Movimientos con efectos secundarios estocásticos</li>
+          <li>Tipos × movimientos × items × habilidades × clima</li>
+          <li><strong>Terastalize</strong> — cambia un tipo del Pokémon una vez por partida</li>
+        </ul>
+      </div>
+
+      <div class="card dark">
+        <div class="card-h">⚡ Complejidad combinatoria</div>
+        <p style="font-size: 0.82rem; line-height: 1.5; margin-bottom: 10px;">
+          Lo que hace VGC un problema "duro" para la IA:
+        </p>
+        <ul class="bullets dual">
+          <li><b>11,449</b><span>pares de acciones posibles por turno (107 × 107)</span></li>
+          <li><b>4 × 2</b><span>slots activos simultáneos — orden de prioridad importa</span></li>
+          <li><b>~150</b><span>Pokémon legales con sets distintos</span></li>
+          <li><b>Parcial</b><span>info: el rival oculta items, EVs y movimientos</span></li>
+          <li><b>Largo</b><span>plazo: KOs hoy condicionan endgame en 10+ turnos</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row row-3">
+      <div class="big-stat">
+        <div class="num">11,449</div>
+        <div class="lbl">Pares de acciones</div>
+      </div>
+      <div class="big-stat">
+        <div class="num">~150</div>
+        <div class="lbl">Pokémon legales</div>
+      </div>
+      <div class="big-stat">
+        <div class="num">15-30</div>
+        <div class="lbl">Turnos por batalla</div>
+      </div>
+    </div>
+
+    <div class="highlight-card">
+      <div class="card-h">💡 ¿Por qué RL y no reglas hardcodeadas?</div>
+      <p style="font-size: 0.85rem; line-height: 1.55;">
+        Heurísticas simples (atacar al más débil, usar el move más fuerte) son <strong>derrotables sistemáticamente</strong> por humanos avanzados. La complejidad combinatoria + información parcial + horizonte temporal largo hacen que <strong>solo aprender desde datos</strong> (RL) escale a nivel competitivo. Nuestro proyecto compara dos enfoques RL distintos sobre la misma plataforma.
+      </p>
+    </div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" style="width: 0.0%;"></div></div>
+  <div class="pokedex-footer">
+    <strong>VGC BOT</strong> · Lab III · Marco Fernández · Rodrigo Sánchez López · Tutor: J. Paredes
+    <span class="slide-counter">01 / 09</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SLIDE 2: ARQUITECTURA DEL SISTEMA
+════════════════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 2 · ARQUITECTURA</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">SISTEMA</div>
+  </div>
+
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 02</div>
+      <div class="slide-title">ARQUITECTURA DEL SISTEMA</div>
+      <div class="slide-subtitle">Cómo conectamos el agente al simulador real de Pokémon Showdown</div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">🔄 Pipeline general (común a ambos modelos)</div>
+      <div class="pipeline" style="margin-top: 6px;">
+        <div class="pipe-box b1">
+          <div><span class="pipe-num">1</span></div>
+          <div class="pipe-title">team.txt + rivales</div>
+          <div class="pipe-desc">Equipo propio Reg I 2026 + pool de oponentes/teams para entrenamiento</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box b2">
+          <div><span class="pipe-num">2</span></div>
+          <div class="pipe-title">poke-env Bridge</div>
+          <div class="pipe-desc">DoublesEnv (PettingZoo paralelo). Encoder de estado + máscara de acciones legales</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box b3">
+          <div><span class="pipe-num">3</span></div>
+          <div class="pipe-title">Agente RL</div>
+          <div class="pipe-desc">Política neuronal (AlphaZero/MCTS o CFR + prior). Decide pares de acciones por turno</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box b4">
+          <div><span class="pipe-num">4</span></div>
+          <div class="pipe-title">Showdown Server</div>
+          <div class="pipe-desc">Simulador oficial corriendo en Docker (puerto 8000 batalla / 9001 simulación)</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-box b5">
+          <div><span class="pipe-num">5</span></div>
+          <div class="pipe-title">Logger + Reporte</div>
+          <div class="pipe-desc">CSV / JSON / PNG con loss, win rate, reward breakdown por iteración</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row row-2">
+      <div class="card">
+        <div class="card-h">📦 Componentes principales</div>
+        <ul class="bullets dual">
+          <li><b>VGCEnv</b><span>Subclase de DoublesEnv. Encoder + sanitización de acciones</span></li>
+          <li><b>state_encoder</b><span>Estado → vector numérico normalizado [0,1]</span></li>
+          <li><b>action_decoder</b><span>Int 0–106 → switch/move/Tera/target semántico</span></li>
+          <li><b>Showdown JS</b><span>Servidor oficial de Pokémon, en Docker compose</span></li>
+          <li><b>poke-env</b><span>SDK Python para hablar con Showdown via WebSocket</span></li>
+          <li><b>Trainer</b><span>Pipeline de RL (AlphaZero o CFR), checkpoints, métricas</span></li>
+        </ul>
+      </div>
+
+      <div class="card dark">
+        <div class="card-h">⚔️ Equipo propio (Reg I 2026)</div>
+        <ul class="bullets dual" style="font-size: 0.78rem;">
+          <li><b>Caly-Ice</b><span>Leftovers · As One · Trick Room · Tera Water</span></li>
+          <li><b>Miraidon</b><span>Choice Specs · Hadron Engine · Tera Fairy</span></li>
+          <li><b>Ursaluna</b><span>Flame Orb · Guts · Tera Ghost</span></li>
+          <li><b>Volcarona</b><span>Rocky Helmet · Flame Body · Tailwind · Tera Water</span></li>
+          <li><b>Grimmsnarl</b><span>Light Clay · Prankster · Reflect/Light Screen</span></li>
+          <li><b>Iron Hands</b><span>Assault Vest · Quark Drive · Fake Out · Tera Bug</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row row-2">
+      <div class="card">
+        <div class="card-h">🎮 Acción espacial — MultiDiscrete[107, 107]</div>
+        <table class="pkm-tbl">
+          <thead><tr><th>Rango</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Pass / no-op</td></tr>
+            <tr><td><code>1–6</code></td><td>Switch al Pokémon de equipo[N-1]</td></tr>
+            <tr><td><code>7–86</code></td><td>Move 1..4 + target (-2..+2) · 4 modos: base/mega/z/dyna</td></tr>
+            <tr><td><code>87–106</code></td><td>Move + target + <strong>Terastalize</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-h">🎲 Oponentes para entrenamiento</div>
+        <ul class="bullets">
+          <li><strong>Random</strong> — selección uniforme entre acciones legales</li>
+          <li><strong>Greedy / MaxBasePower</strong> — siempre el move de mayor poder base</li>
+          <li><strong>Self-play</strong> — versiones anteriores del propio agente</li>
+          <li>Ciclo rotativo: <code>random → greedy → self → greedy → self → ...</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" style="width: 11.11%;"></div></div>
+  <div class="pokedex-footer">
+    <strong>VGC BOT</strong> · Lab III · Marco Fernández · Rodrigo Sánchez López · Tutor: J. Paredes
+    <span class="slide-counter">02 / 09</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SLIDE 3: ALPHAZERO — MODELO Y CONFIGURACIÓN
+════════════════════════════════════════════════════════════ -->
+<!-- SLIDE 3: ALPHAZERO MODELO -->
+<div class="slide" id="s3">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 3 &middot; ALPHAZERO</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">MODELO 1</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 03</div>
+      <div class="slide-title">ALPHAZERO MCTS + PPO</div>
+      <div class="slide-subtitle">Planificacion con arbol de busqueda y red de politica/valor</div>
+    </div>
+    <div class="card">
+      <div class="card-h">Como decide un turno</div>
+      <div class="pipeline">
+        <div class="pipe-box b1"><div><span class="pipe-num">1</span></div><div class="pipe-title">Estado VGC</div><div class="pipe-desc">HP, activos, banco, clima, status, tera e informacion visible.</div></div>
+        <div class="pipe-arrow">&rarr;</div>
+        <div class="pipe-box b2"><div><span class="pipe-num">2</span></div><div class="pipe-title">Ranker MLP</div><div class="pipe-desc">Reduce el espacio de acciones a candidatas manejables.</div></div>
+        <div class="pipe-arrow">&rarr;</div>
+        <div class="pipe-box b3"><div><span class="pipe-num">3</span></div><div class="pipe-title">MCTS</div><div class="pipe-desc">Simula ramas con Showdown Sim y pondera visitas.</div></div>
+        <div class="pipe-arrow">&rarr;</div>
+        <div class="pipe-box b4"><div><span class="pipe-num">4</span></div><div class="pipe-title">PPO update</div><div class="pipe-desc">Entrena policy/value para imitar y mejorar la busqueda.</div></div>
+      </div>
+    </div>
+    <div class="row row-2">
+      <div class="card">
+        <div class="card-h">Run final usado</div>
+        <table class="pkm-tbl"><tbody>
+          <tr><td>Checkpoint</td><td><code>d4_zero_20260509</code></td></tr>
+          <tr><td>Profundidad de entrenamiento</td><td><strong>4</strong></td></tr>
+          <tr><td>Iteraciones completadas</td><td><strong>10</strong> / 60</td></tr>
+          <tr><td>Decisiones offline</td><td><strong>9.371</strong></td></tr>
+          <tr><td>Updates PPO</td><td><strong>80</strong></td></tr>
+          <tr><td>Simulador</td><td>requerido durante rollouts</td></tr>
+        </tbody></table>
+      </div>
+      <div class="card dark">
+        <div class="card-h">Que mide su loss</div>
+        <ul class="bullets dual">
+          <li><b>Policy</b><span>ajuste de la accion elegida.</span></li>
+          <li><b>Value</b><span>prediccion del resultado final.</span></li>
+          <li><b>MCTS C-E</b><span>imitacion de la distribucion de visitas del arbol.</span></li>
+          <li><b>Entropy</b><span>exploracion para evitar colapso prematuro.</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="row row-3">
+      <div class="big-stat"><div class="num">4.0%</div><div class="lbl">WR entrenamiento</div></div>
+      <div class="big-stat"><div class="num">48.3%</div><div class="lbl">WR torneo</div></div>
+      <div class="big-stat"><div class="num">92</div><div class="lbl">draws offline</div></div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 22.22%;"></div></div>
+  <div class="pokedex-footer"><strong>ALPHAZERO MCTS + PPO</strong> &middot; modelo de busqueda &middot; <span class="slide-counter">03 / 09</span></div>
+</div>
+
+<!-- SLIDE 4: ALPHAZERO RESULTADOS -->
+<div class="slide" id="s4">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 4 &middot; ALPHAZERO RESULTS</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">REPORTE FINAL</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 04</div>
+      <div class="slide-title">RESULTADOS ALPHAZERO</div>
+      <div class="slide-subtitle">Reporte final: 10 iteraciones, 100 partidas offline y checkpoint incompleto</div>
+    </div>
+    <div class="row" style="grid-template-columns: 1.25fr 1fr; gap: 12px;">
+      <div class="card"><div class="card-h">Curvas reales del reporte</div><img src="plots/alphazero/loss_curves.png" class="plot-img" alt="AlphaZero loss"><div class="plot-cap">Loss &middot; Policy &middot; Value &middot; MCTS C-E &middot; Entropia</div></div>
+      <div class="card dark"><div class="card-h">Metricas finales</div>
+        <ul class="bullets dual">
+          <li><b>Offline WR</b><span><strong>4.0%</strong> (4W/4L/92D)</span></li>
+          <li><b>Torneo</b><span><strong>29-31</strong>, 48.3%</span></li>
+          <li><b>Final loss</b><span>2.575</span></li>
+          <li><b>MCTS depth</b><span>4 en entrenamiento; 2 en torneo por tiempo</span></li>
+          <li><b>Diagnostico</b><span>baja capacidad de cerrar partidas offline.</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="row row-3">
+      <div class="card"><div class="card-h">Win rate por iteracion</div><img src="plots/alphazero/winrate_per_stage.png" class="plot-img" style="max-height: 165px;"></div>
+      <div class="card"><div class="card-h">Reward breakdown</div><img src="plots/alphazero/reward_breakdown.png" class="plot-img" style="max-height: 165px;"></div>
+      <div class="card"><div class="card-h">Reward promedio</div><img src="plots/alphazero/episode_rewards.png" class="plot-img" style="max-height: 165px;"></div>
+    </div>
+    <div class="highlight-card"><div class="card-h">Lectura correcta</div><p style="font-size:0.82rem; line-height:1.5;">AlphaZero fue util como arquitectura de busqueda, pero el entrenamiento quedo limitado: solo completo <strong>10 de 60</strong> iteraciones y acumulo <strong>92 draws</strong>. En el torneo no fue el peor: supero a CFR <strong>22-8</strong>, pero perdio claramente contra PPO recurrente <strong>7-23</strong>.</p></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 33.33%;"></div></div>
+  <div class="pokedex-footer"><strong>ALPHAZERO</strong> &middot; reporte final + torneo &middot; <span class="slide-counter">04 / 09</span></div>
+</div>
+
+<!-- SLIDE 5: PPO RECURRENTE -->
+<div class="slide" id="s5">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 5 &middot; PPO RECURRENTE</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">MODELO 2</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 05</div>
+      <div class="slide-title">PPO RECURRENTE</div>
+      <div class="slide-subtitle">Politica directa con LSTM, curriculum y self-play league</div>
+    </div>
+    <div class="row" style="grid-template-columns: 1.25fr 1fr; gap: 12px;">
+      <div class="card"><div class="card-h">Curvas reales del reporte unido</div><img src="plots/ppo/loss_curves.png" class="plot-img" alt="PPO loss"><div class="plot-cap">Value loss &middot; Policy loss por stage</div></div>
+      <div class="card dark"><div class="card-h">Resumen del entrenamiento</div>
+        <ul class="bullets dual">
+          <li><b>Timesteps</b><span>1.999.872 registrados</span></li>
+          <li><b>Gap</b><span>256 timesteps por crash/reanudacion</span></li>
+          <li><b>Train WR</b><span>49.1% en 117.986 episodios</span></li>
+          <li><b>Updates</b><span>7.810</span></li>
+          <li><b>Torneo</b><span><strong>46-14</strong>, 76.7%</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="row row-3">
+      <div class="card"><div class="card-h">Win rate por stage</div><img src="plots/ppo/winrate_per_stage.png" class="plot-img" style="max-height: 165px;"></div>
+      <div class="card"><div class="card-h">Reward breakdown</div><img src="plots/ppo/reward_breakdown.png" class="plot-img" style="max-height: 165px;"></div>
+      <div class="card"><div class="card-h">Reward promedio</div><img src="plots/ppo/episode_rewards.png" class="plot-img" style="max-height: 165px;"></div>
+    </div>
+    <div class="highlight-card"><div class="card-h">Lo importante</div><p style="font-size:0.82rem; line-height:1.5;">Aunque su win rate durante entrenamiento fue cercano al 50%, en evaluacion directa fue el modelo mas fuerte: gano <strong>46 de 60</strong> partidas, sin draws ni timeouts. La memoria recurrente parece haber ayudado mas que la planificacion profunda en este presupuesto de computo.</p></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 44.44%;"></div></div>
+  <div class="pokedex-footer"><strong>PPO RECURRENTE</strong> &middot; ganador del torneo &middot; <span class="slide-counter">05 / 09</span></div>
+</div>
+
+<!-- SLIDE 6: CFR MODELO -->
+<div class="slide" id="s6">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 6 &middot; CFR + PRIOR</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">MODELO 3</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 06</div>
+      <div class="slide-title">CFR TABULAR + PRIOR NEURONAL</div>
+      <div class="slide-subtitle">Regret minimization para decisiones simultaneas con apoyo de una red prior</div>
+    </div>
+    <div class="row row-2">
+      <div class="card"><div class="card-h">Por que CFR tenia sentido</div><p style="font-size:0.82rem; color:var(--p-text-d); line-height:1.5;">VGC tiene informacion imperfecta y acciones simultaneas. CFR acumula arrepentimiento por accion y construye una estrategia mixta. La red prior intenta generalizar esa tabla para no depender solo de estados ya visitados.</p>
+        <ul class="bullets"><li>Depth 2, max 8 acciones por nodo.</li><li>20 iteraciones, 200 partidas offline.</li><li>8.549 information-set updates.</li><li>Prior neuronal residual: hidden 256, embedding 192, 3 capas.</li></ul>
+      </div>
+      <div class="card dark"><div class="card-h">Metricas finales</div>
+        <ul class="bullets dual">
+          <li><b>Train WR</b><span>54.5% (109W/91L)</span></li>
+          <li><b>Draws</b><span>0</span></li>
+          <li><b>Regret</b><span>0.0758</span></li>
+          <li><b>Entropy</b><span>1.246</span></li>
+          <li><b>Torneo</b><span>15-45, 25.0%</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card"><div class="card-h">Crecimiento de la tabla CFR</div><img src="plots/cfr/cfr_model_curves.png" class="plot-img" style="max-height: 285px;" alt="CFR model curves"><div class="plot-cap">Information sets &middot; visits &middot; max positive regret</div></div>
+    <div class="highlight-card"><div class="card-h">Lectura correcta</div><p style="font-size:0.82rem; line-height:1.5;">CFR mejoro mucho contra baselines de entrenamiento, pero no transfirio igual de bien al torneo entre modelos. Esto muestra que <strong>ganar al curriculum no equivale a ganar contra otros agentes aprendidos</strong>.</p></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 55.56%;"></div></div>
+  <div class="pokedex-footer"><strong>CFR + NEURAL PRIOR</strong> &middot; buen baseline, peor torneo &middot; <span class="slide-counter">06 / 09</span></div>
+</div>
+
+<!-- SLIDE 7: CFR RESULTADOS -->
+<div class="slide" id="s7">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 7 &middot; CFR RESULTS</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">REPORTE FINAL</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 07</div>
+      <div class="slide-title">RESULTADOS CFR</div>
+      <div class="slide-subtitle">20 iteraciones &middot; 200 partidas &middot; 54.5% WR de entrenamiento &middot; 0 draws</div>
+    </div>
+    <div class="row" style="grid-template-columns: 1.3fr 1fr; gap: 12px;">
+      <div class="card"><div class="card-h">Curvas reales regeneradas</div><img src="plots/cfr/loss_curves.png" class="plot-img" alt="CFR loss"><div class="plot-cap">Regret &middot; entropy &middot; neural losses &middot; reward</div></div>
+      <div class="card dark"><div class="card-h">Comparacion entrenamiento vs torneo</div>
+        <div class="wr-row"><span class="wr-name">Training</span><div class="wr-bar-bg"><div class="wr-bar-fill high" style="width:54.5%;"></div></div><span class="wr-val">54.5%</span></div>
+        <div class="wr-row"><span class="wr-name">Torneo</span><div class="wr-bar-bg"><div class="wr-bar-fill low" style="width:25.0%;"></div></div><span class="wr-val">25.0%</span></div>
+        <p style="margin-top:12px; font-size:0.76rem; color:rgba(255,255,255,0.78); line-height:1.45;">El reporte final de CFR es valido, pero el torneo revela sobreajuste al tipo de rivales del curriculum.</p>
+      </div>
+    </div>
+    <div class="row row-3">
+      <div class="card"><div class="card-h">Win rate por iteracion</div><img src="plots/cfr/winrate_per_stage.png" class="plot-img" style="max-height: 165px;"></div>
+      <div class="card"><div class="card-h">Reward breakdown</div><img src="plots/cfr/reward_breakdown.png" class="plot-img" style="max-height: 165px;"></div>
+      <div class="card"><div class="card-h">Reward promedio</div><img src="plots/cfr/episode_rewards.png" class="plot-img" style="max-height: 165px;"></div>
+    </div>
+    <div class="highlight-card"><div class="card-h">Diagnostico</div><p style="font-size:0.82rem; line-height:1.5;">CFR dejo de producir draws falsos y aprendio una politica funcional. Pero con depth 2 y pocos candidatos, quedo corto contra politicas aprendidas mas agresivas: perdio <strong>8-22</strong> contra AlphaZero y <strong>7-23</strong> contra PPO.</p></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 66.67%;"></div></div>
+  <div class="pokedex-footer"><strong>CFR</strong> &middot; entrenamiento solido, torneo debil &middot; <span class="slide-counter">07 / 09</span></div>
+</div>
+
+<!-- SLIDE 8: TORNEO -->
+<div class="slide" id="s8">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 8 &middot; TORNEO FINAL</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">HEAD-TO-HEAD</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 08</div>
+      <div class="slide-title">TORNEO ENTRE LOS 3 MODELOS</div>
+      <div class="slide-subtitle">30 partidas por cruce &middot; 90 partidas terminadas &middot; 0 draws &middot; 0 timeouts</div>
+    </div>
+    <div class="row row-3">
+      <div class="big-stat"><div class="num">1ro</div><div class="lbl">PPO recurrente &middot; 46-14</div></div>
+      <div class="big-stat"><div class="num">2do</div><div class="lbl">AlphaZero &middot; 29-31</div></div>
+      <div class="big-stat"><div class="num">3ro</div><div class="lbl">CFR &middot; 15-45</div></div>
+    </div>
+    <div class="row row-2">
+      <div class="card dark"><div class="card-h">Ranking global</div>
+        <div class="wr-row"><span class="wr-name">PPO</span><div class="wr-bar-bg"><div class="wr-bar-fill high" style="width:76.7%;"></div></div><span class="wr-val">76.7%</span></div>
+        <div class="wr-row"><span class="wr-name">AZ</span><div class="wr-bar-bg"><div class="wr-bar-fill med" style="width:48.3%;"></div></div><span class="wr-val">48.3%</span></div>
+        <div class="wr-row"><span class="wr-name">CFR</span><div class="wr-bar-bg"><div class="wr-bar-fill low" style="width:25.0%;"></div></div><span class="wr-val">25.0%</span></div>
+        <p style="margin-top:12px; font-size:0.76rem; color:rgba(255,255,255,0.78); line-height:1.45;">PPO gano 46 de 60 y fue el unico con dominio claro contra ambos rivales.</p>
+      </div>
+      <div class="card"><div class="card-h">Cruces directos</div>
+        <table class="pkm-tbl"><tbody>
+          <tr><td>AlphaZero vs CFR</td><td><strong>22-8</strong> AlphaZero</td></tr>
+          <tr><td>AlphaZero vs PPO</td><td><strong>23-7</strong> PPO</td></tr>
+          <tr><td>CFR vs PPO</td><td><strong>23-7</strong> PPO</td></tr>
+          <tr><td>Turnos promedio</td><td>12.4 PPO &middot; 13.2 AZ &middot; 14.3 CFR</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="highlight-card"><div class="card-h">Conclusion del torneo</div><p style="font-size:0.84rem; line-height:1.5;">La evaluacion head-to-head cambio la lectura: CFR parecia mejor mirando solo su reporte de entrenamiento, pero contra modelos aprendidos quedo tercero. El modelo mas robusto en juego directo fue <strong>PPO recurrente</strong>.</p></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 77.78%;"></div></div>
+  <div class="pokedex-footer"><strong>TORNEO FINAL</strong> &middot; PPO recurrente ganador &middot; <span class="slide-counter">08 / 09</span></div>
+</div>
+
+<!-- SLIDE 9: CONCLUSIONES -->
+<div class="slide" id="s9">
+  <div class="pokedex-header">
+    <div class="pokedex-led"></div><div class="pokedex-led green"></div><div class="pokedex-led yellow"></div>
+    <div class="pokedex-title">SLIDE 9 &middot; CONCLUSIONES</div>
+    <div class="pokedex-spacer"></div>
+    <div class="pokedex-meta">CIERRE</div>
+  </div>
+  <div class="slide-content">
+    <div>
+      <div class="pokedex-id">SLIDE 09</div>
+      <div class="slide-title">CONCLUSIONES REALES</div>
+      <div class="slide-subtitle">Lo que mostro el entrenamiento y lo que mostro la evaluacion directa</div>
+    </div>
+    <div class="row row-2">
+      <div class="card"><div class="card-h">Que paso de verdad</div>
+        <ul class="bullets">
+          <li><strong>PPO recurrente</strong> fue el mejor modelo final: 76.7% WR en torneo.</li>
+          <li><strong>AlphaZero</strong> entreno poco y tuvo muchos draws offline, pero fue competitivo contra CFR.</li>
+          <li><strong>CFR</strong> mejoro contra baselines, pero no generalizo bien al torneo entre agentes.</li>
+          <li>Los reportes por separado no alcanzan: el torneo fue la metrica comparativa mas honesta.</li>
+        </ul>
+      </div>
+      <div class="card dark"><div class="card-h">Limitaciones principales</div>
+        <ul class="bullets dual">
+          <li><b>PPO</b><span>fuerte, pero menos interpretable que CFR/MCTS.</span></li>
+          <li><b>AZ</b><span>muy caro; d4 no termino y en torneo bajo a d2.</span></li>
+          <li><b>CFR</b><span>depth 2 y pocos candidatos limitan estrategia.</span></li>
+          <li><b>Datos</b><span>faltan mas semillas, equipos y ladder real.</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card"><div class="card-h">Proximos pasos razonables</div>
+      <div class="row row-4">
+        <div><div style="color:var(--p-blue); font-family:'Press Start 2P',monospace; font-size:0.55rem; margin-bottom:6px;">1 &middot; EVAL</div><p style="font-size:0.74rem; line-height:1.4; color:var(--p-text-d);">Mas torneos con semillas distintas y mismo presupuesto para todos.</p></div>
+        <div><div style="color:var(--p-purple); font-family:'Press Start 2P',monospace; font-size:0.55rem; margin-bottom:6px;">2 &middot; PPO</div><p style="font-size:0.74rem; line-height:1.4; color:var(--p-text-d);">Usar PPO como baseline fuerte y medirlo en ladder real.</p></div>
+        <div><div style="color:var(--p-orange); font-family:'Press Start 2P',monospace; font-size:0.55rem; margin-bottom:6px;">3 &middot; CFR</div><p style="font-size:0.74rem; line-height:1.4; color:var(--p-text-d);">Subir depth/candidatos y mejorar el prior para no perder contra agentes aprendidos.</p></div>
+        <div><div style="color:var(--p-green); font-family:'Press Start 2P',monospace; font-size:0.55rem; margin-bottom:6px;">4 &middot; AZ</div><p style="font-size:0.74rem; line-height:1.4; color:var(--p-text-d);">Optimizar simulador o usar menos ramas para completar entrenamiento.</p></div>
+      </div>
+    </div>
+    <div class="highlight-card" style="background: linear-gradient(135deg, var(--p-red) 0%, var(--p-red-d) 100%);">
+      <div class="card-h" style="color:white; border-bottom-color:rgba(255,255,255,0.3);">Cierre</div>
+      <p style="color:white; font-size:0.9rem; line-height:1.55;">El proyecto dejo tres familias funcionales y comparables. La sorpresa fue que el modelo mas simple de ejecutar, <strong>PPO recurrente</strong>, termino ganando el torneo. CFR y AlphaZero siguen siendo valiosos como lineas de investigacion, pero necesitan mas presupuesto o mejor poda para superar al baseline recurrente.</p>
+      <div style="text-align:center; margin-top:10px; color:var(--p-yellow); font-family:'Press Start 2P',monospace; font-size:0.65rem;">GRACIAS</div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width: 88.89%;"></div></div>
+  <div class="pokedex-footer"><strong>VGC BOT</strong> &middot; cierre &middot; Marco Fernandez &middot; Rodrigo Sanchez Lopez &middot; Tutor: J. Paredes <span class="slide-counter">09 / 09</span></div>
+</div>
+</div>
+
+<div class="nav-hint">← → para navegar · F11 para fullscreen</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = 0;
+  function show(i) {
+    if (i < 0 || i >= slides.length) return;
+    slides[current].classList.remove('active');
+    current = i;
+    slides[current].classList.add('active');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); if (current < slides.length - 1) show(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); if (current > 0) show(current - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  document.addEventListener('click', e => {
+    if (e.target.closest('a, button')) return;
+    const w = window.innerWidth;
+    if (e.clientX < w * 0.3) { if (current > 0) show(current - 1); }
+    else if (e.clientX > w * 0.7) { if (current < slides.length - 1) show(current + 1); }
+  });
+</script>
+
+</body>
+</html>

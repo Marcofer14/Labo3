@@ -23,6 +23,12 @@ WORKDIR /app
 # Se copia requirements.txt primero para aprovechar la cache de Docker:
 # si los requirements no cambian, no reinstala en cada build.
 COPY requirements.txt .
+# Instalar PyTorch CPU primero evita que pip resuelva una rueda CUDA enorme
+# cuando requirements o SB3 piden `torch>=...`.
+RUN pip install --no-cache-dir \
+        --trusted-host download.pytorch.org \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.3.1+cpu
 # --trusted-host: evita errores de SSL en redes con proxy/firewall corporativo
 RUN pip install --no-cache-dir \
         --trusted-host pypi.org \

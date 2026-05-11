@@ -1,0 +1,23 @@
+{
+  "schema_version": "common-v1",
+  "model_family": "alphazero_mcts_ppo",
+  "algorithm": "alphazero_mcts_ppo",
+  "total_games": 100,
+  "wins": 4,
+  "losses": 4,
+  "draws": 92,
+  "win_rate": 0.04,
+  "avg_episode_length": 11.05,
+  "avg_reward": 0.0,
+  "final_loss": 2.575393,
+  "final_policy_loss": 0.326612,
+  "final_value_loss": 0.001224,
+  "final_entropy": 1.498531,
+  "total_updates": 80,
+  "total_decisions": 9371,
+  "total_iterations": 60,
+  "completed_iterations": 10,
+  "last_iteration": 11,
+  "training_log_path": "logs/alphazero_train_offline_d4_zero_20260509.jsonl",
+  "rollout_path": "data/alphazero/rollouts_offline_d4_zero_20260509.jsonl"
+}

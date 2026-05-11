@@ -434,6 +434,52 @@ Para normalizar un `report.json` del PPO recurrente y medirlo con el mismo contr
 docker compose run --rm trainer python scripts/export_model_metrics.py ppo --report-json reports/run_YYYYMMDD_HHMMSS/report.json --output-dir reports/ppo_common
 ```
 
+## CFR tabular + red prior
+
+Esta rama tambien incluye un tercer modelo experimental: `cfr`, basado en regret minimization tabular aproximado. Agrupa estados publicos en claves compactas, calcula regrets sobre acciones simultaneas con `showdown-sim` y guarda una estrategia promedio. Para evitar que estados poco vistos queden casi uniformes, el entrenamiento tambien aprende una red prior residual (`prior.pt`) a partir de las matrices de utilidad del simulador; esa red se mezcla con la tabla cuando un information set tiene pocas visitas.
+
+Defaults actuales recomendados:
+
+- `--cfr-depth 2`: evalua una respuesta mas alla de la accion inmediata.
+- `--offline-max-turns 120`: reduce truncamientos en finales 1v1 largos.
+- red prior residual: `hidden=256`, `embedding=192`, `layers=3`, `dropout=0.05`, smoothing de politica `0.02`.
+
+Entrenar un smoke corto:
+
+```powershell
+docker compose run --rm trainer python -u scripts/train_cfr.py --iterations 1 --games 2 --opponent random --cfr-depth 2 --max-actions 4 --simulator-max-choices 4 --simulator-timeout 180 --offline-max-turns 120 --format gen9vgc2026regi --team team.txt --output-dir checkpoints/cfr_smoke_d2 --rollout-path data/cfr/rollouts_smoke_d2.jsonl --training-log-path logs/cfr_smoke_d2.jsonl --neural-epochs 1 --neural-replay-size 1024
+```
+
+Para entrenar CFR puramente tabular sin red prior, agregar `--no-neural-prior`.
+
+Entrenar una corrida mas larga:
+
+```powershell
+docker compose run --name cfr-train-neural-d2-20260510 trainer python -u scripts/train_cfr.py --iterations 20 --games 10 --opponent-cycle random,greedy,self,greedy,self,random,greedy,self --cfr-depth 2 --max-actions 8 --simulator-max-choices 8 --simulator-timeout 180 --simulator-opponent-policy robust --simulator-robust-worst-weight 0.35 --offline-max-turns 120 --format gen9vgc2026regi --team team.txt --output-dir checkpoints/cfr_tabular_neural_d2_20260510 --rollout-path data/cfr/rollouts_cfr_tabular_neural_d2_20260510.jsonl --training-log-path logs/cfr_train_tabular_neural_d2_20260510.jsonl --metrics-report-dir reports --neural-epochs 2 --neural-batch-size 64 --neural-replay-size 20000 --progress-games 5
+```
+
+Evaluar offline:
+
+```powershell
+docker compose run --rm trainer python -u scripts/evaluate_cfr_offline.py --n 5 --p2 random --checkpoint checkpoints/cfr_tabular_neural_d2_20260510/best.json --neural-checkpoint checkpoints/cfr_tabular_neural_d2_20260510/prior.pt --format gen9vgc2026regi --team team.txt --max-actions 8 --offline-max-turns 120 --report-dir reports/cfr_eval_random_d2_20260510
+```
+
+Probar en `play.py`:
+
+```powershell
+docker compose run --rm trainer python -u play.py --mode challenge --n 5 --p1 cfr --p2 random --server showdown:8000 --format gen9vgc2026regi --team team.txt --cfr-checkpoint checkpoints/cfr_tabular_neural_d2_20260510/best.json --cfr-neural-checkpoint checkpoints/cfr_tabular_neural_d2_20260510/prior.pt --cfr-max-candidates 32 --battle-timeout 900
+```
+
+## Torneo entre modelos entrenados
+
+El torneo compara solo estos tres modelos: `alphazero_mcts`, `cfr` y `ppo_recurrent`. No incluye `random`, `greedy` ni otros baselines. Corre 10 partidas por cruce, alternando lados, y genera `report.html`, `report.json`, `common_metrics.json`, `league_stats.json` y `battles.jsonl`.
+
+```powershell
+docker compose run --name tournament-az-cfr-ppo-20260511 trainer python -u scripts/run_model_tournament.py --games-per-pair 10 --server showdown:8000 --format gen9vgc2026regi --team team.txt --alphazero-checkpoint checkpoints/alphazero_mcts_ppo_offline_d4_zero_20260509/best.pt --alphazero-simulations 64 --alphazero-depth 2 --alphazero-max-candidates 96 --alphazero-simulator-url http://showdown-sim:9001 --alphazero-live-state-url http://showdown:9002 --alphazero-simulator-max-choices 8 --alphazero-simulator-opponent-policy robust --alphazero-simulator-robust-worst-weight 0.35 --alphazero-simulator-timeout 180 --alphazero-require-simulator --cfr-checkpoint checkpoints/cfr_tabular_neural_d2_zero_20260510/best.json --cfr-neural-checkpoint checkpoints/cfr_tabular_neural_d2_zero_20260510/prior.pt --cfr-max-candidates 32 --ppo-checkpoint checkpoints/vgc_final.zip --ppo-device cpu --battle-timeout 7200
+```
+
+Nota: el checkpoint puede ser el entrenado con depth 4, pero para torneos live se recomienda evaluar con `--alphazero-depth 2`. `depth 4` con 128 simulaciones puede bloquear requests al simulador por varios minutos y hacer que AlphaZero falle si `--alphazero-require-simulator` esta activo.
+
 Si el header de `play.py` muestra `estado=http://showdown:9002`, MCTS esta usando el estado vivo del servidor local. Si no se pasa `--live-state-url`, el codigo vuelve al tracker por historial, que sirve como fallback pero puede divergir por RNG o reparaciones del replay.
 
 Probar el checkpoint contra `random`:

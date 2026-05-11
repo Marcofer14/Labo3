@@ -136,6 +136,29 @@ def alphazero_policy_kwargs(args, tracker: ShowdownSimulationTracker | None = No
     }
 
 
+def cfr_policy_kwargs(args) -> dict:
+    return {
+        "checkpoint_path": args.cfr_checkpoint,
+        "max_candidates": args.cfr_max_candidates,
+        "temperature": args.cfr_temperature,
+        "fallback": args.cfr_fallback,
+        "neural_checkpoint_path": args.cfr_neural_checkpoint,
+        "neural_weight": args.cfr_neural_weight,
+        "min_average_visits": args.cfr_min_average_visits,
+        "neural_device": args.cfr_neural_device,
+    }
+
+
+def ppo_policy_kwargs(args) -> dict:
+    return {
+        "checkpoint_path": args.ppo_checkpoint,
+        "team_path": args.team,
+        "device": args.ppo_device,
+        "deterministic": args.ppo_deterministic,
+        "strict_actions": args.ppo_strict_actions,
+    }
+
+
 def policy_kwargs_for(
     policy: str,
     args,
@@ -143,6 +166,10 @@ def policy_kwargs_for(
 ) -> dict | None:
     if policy == "alphazero_mcts":
         return alphazero_policy_kwargs(args, tracker)
+    if policy == "cfr":
+        return cfr_policy_kwargs(args)
+    if policy in {"ppo", "ppo_recurrent"}:
+        return ppo_policy_kwargs(args)
     return None
 
 
@@ -253,6 +280,8 @@ async def play(args) -> tuple[object, object | None, bool]:
     battle_format = resolve_format(args.format)
     server_cfg = build_server_config(args.server)
     uses_alphazero = args.p1 == "alphazero_mcts" or args.p2 == "alphazero_mcts"
+    uses_cfr = args.p1 == "cfr" or args.p2 == "cfr"
+    uses_ppo = args.p1 in {"ppo", "ppo_recurrent"} or args.p2 in {"ppo", "ppo_recurrent"}
     tracker = None
     if (
         uses_alphazero
@@ -313,6 +342,21 @@ async def play(args) -> tuple[object, object | None, bool]:
                 f"worst_weight={args.alphazero_simulator_robust_worst_weight} | "
                 f"required={args.alphazero_require_simulator}"
             )
+    if uses_cfr:
+        print(
+            "  CFR: "
+            f"checkpoint={args.cfr_checkpoint or 'sin checkpoint'} | "
+            f"neural={args.cfr_neural_checkpoint or 'sin red'} | "
+            f"max_candidates={args.cfr_max_candidates} | "
+            f"fallback={args.cfr_fallback}"
+        )
+    if uses_ppo:
+        print(
+            "  PPO recurrente: "
+            f"checkpoint={args.ppo_checkpoint} | "
+            f"device={args.ppo_device} | "
+            f"deterministic={args.ppo_deterministic}"
+        )
     print(f"  Partidas:  {args.n}")
     print("=" * 55)
 
@@ -413,14 +457,14 @@ def parse_args():
         "--p1",
         type=str,
         default="greedy",
-        choices=["random", "greedy", "alphazero_mcts"],
+        choices=["random", "greedy", "alphazero_mcts", "cfr", "ppo", "ppo_recurrent"],
         help="Politica del bot principal (default: greedy)",
     )
     parser.add_argument(
         "--p2",
         type=str,
         default="random",
-        choices=["random", "greedy", "alphazero_mcts"],
+        choices=["random", "greedy", "alphazero_mcts", "cfr", "ppo", "ppo_recurrent"],
         help="Politica del segundo bot (default: random)",
     )
     parser.add_argument(
@@ -551,6 +595,77 @@ def parse_args():
         "--alphazero-require-simulator",
         action="store_true",
         help="Falla si depth >= 2 no puede usar el simulador Showdown real.",
+    )
+    parser.add_argument(
+        "--cfr-checkpoint",
+        type=str,
+        default=None,
+        help="Checkpoint JSON para la politica CFR tabular.",
+    )
+    parser.add_argument(
+        "--cfr-max-candidates",
+        type=int,
+        default=32,
+        help="Maximo de acciones dobles candidatas para CFR (default: 32).",
+    )
+    parser.add_argument(
+        "--cfr-temperature",
+        type=float,
+        default=0.0,
+        help="Temperatura al samplear la estrategia promedio CFR (default: 0, determinista).",
+    )
+    parser.add_argument(
+        "--cfr-fallback",
+        choices=["heuristic", "random"],
+        default="heuristic",
+        help="Fallback cuando CFR no conoce el estado (default: heuristic).",
+    )
+    parser.add_argument(
+        "--cfr-neural-checkpoint",
+        type=str,
+        default=None,
+        help="Checkpoint .pt de la red prior CFR para estados poco visitados.",
+    )
+    parser.add_argument(
+        "--cfr-neural-weight",
+        type=float,
+        default=0.70,
+        help="Peso de la red prior cuando se mezcla con la tabla CFR (default: 0.70).",
+    )
+    parser.add_argument(
+        "--cfr-min-average-visits",
+        type=int,
+        default=3,
+        help="Visitas minimas para usar estrategia promedio tabular pura (default: 3).",
+    )
+    parser.add_argument(
+        "--cfr-neural-device",
+        type=str,
+        default="cpu",
+        help="Dispositivo de la red CFR prior (default: cpu).",
+    )
+    parser.add_argument(
+        "--ppo-checkpoint",
+        type=str,
+        default="checkpoints/vgc_final.zip",
+        help="Checkpoint .zip para PPO/RecurrentPPO (default: checkpoints/vgc_final.zip).",
+    )
+    parser.add_argument(
+        "--ppo-device",
+        type=str,
+        default="cpu",
+        help="Dispositivo para PPO/RecurrentPPO: cpu o cuda (default: cpu).",
+    )
+    parser.add_argument(
+        "--ppo-deterministic",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Usar prediccion determinista para PPO/RecurrentPPO (default: true).",
+    )
+    parser.add_argument(
+        "--ppo-strict-actions",
+        action="store_true",
+        help="Fallar si PPO genera una accion ilegal, en vez de caer a fallback legal.",
     )
     return parser.parse_args()
 

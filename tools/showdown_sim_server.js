@@ -217,13 +217,20 @@ function moveTargets(move) {
 function slotChoices(request, slot) {
   if (!request) return ["default"];
   const switches = availableSwitches(request);
+  const forceSwitch = Array.isArray(request.forceSwitch) ? request.forceSwitch : [];
+  const isForceSwitchRequest = forceSwitch.some(Boolean);
 
-  if (request.forceSwitch?.[slot]) {
+  if (isForceSwitchRequest) {
+    if (!forceSwitch[slot]) return ["pass"];
     return switches.length ? switches : ["pass"];
   }
 
   const active = request.active?.[slot];
   if (!active) return ["pass"];
+  const activeCondition = String(active.condition || "");
+  if (active.fainted || activeCondition.endsWith(" fnt") || activeCondition === "0 fnt") {
+    return ["pass"];
+  }
 
   const choices = [];
   for (const move of active.moves || []) {
@@ -267,6 +274,54 @@ function combineChoices(first, second) {
   return choices;
 }
 
+function uniqueChoices(choices) {
+  return Array.from(new Set((choices || []).filter(Boolean)));
+}
+
+function forceSwitchOnlyChoices(request) {
+  const forceSwitch = Array.isArray(request?.forceSwitch) ? request.forceSwitch : [];
+  if (!forceSwitch.some(Boolean)) return [];
+  const switches = availableSwitches(request);
+  const perForcedSlot = [];
+  for (let slot = 0; slot < forceSwitch.length; slot++) {
+    if (!forceSwitch[slot]) continue;
+    perForcedSlot.push(switches.length ? switches : ["pass"]);
+  }
+  if (!perForcedSlot.length) return [];
+  if (switches.length <= 1) return switches.length ? switches : ["pass"];
+  if (perForcedSlot.length === 1) return perForcedSlot[0];
+  return combineChoices(perForcedSlot[0], perForcedSlot[1]);
+}
+
+function activeSlotCanAct(request, slot) {
+  const active = request?.active?.[slot];
+  if (!active) return false;
+  const condition = String(active.condition || "");
+  return !(active.fainted || condition.endsWith(" fnt") || condition === "0 fnt");
+}
+
+function singleActiveSlotChoices(request) {
+  const forceSwitch = Array.isArray(request?.forceSwitch) ? request.forceSwitch : [];
+  if (forceSwitch.some(Boolean)) return [];
+  const choices = [];
+  for (let slot = 0; slot < 2; slot++) {
+    if (!activeSlotCanAct(request, slot)) continue;
+    for (const choice of slotChoices(request, slot)) {
+      if (choice && choice !== "pass") choices.push(choice);
+    }
+  }
+  return uniqueChoices(choices);
+}
+
+function requestFallbackChoices(request) {
+  return uniqueChoices([
+    ...forceSwitchOnlyChoices(request),
+    ...singleActiveSlotChoices(request),
+    "pass",
+    "pass, pass",
+  ]);
+}
+
 function isLegalChoice(battle, side, choice) {
   try {
     const clone = cloneBattle(battle);
@@ -289,8 +344,15 @@ function legalChoicesForSide(battle, side, maxChoices) {
 
   const first = slotChoices(request, 0);
   const second = slotChoices(request, 1);
-  let choices = combineChoices(first, second);
-  choices = choices.filter(choice => isLegalChoice(battle, side, choice));
+  let choices = uniqueChoices(combineChoices(first, second))
+    .filter(choice => isLegalChoice(battle, side, choice));
+  if (!choices.length) {
+    choices = requestFallbackChoices(request)
+      .filter(choice => isLegalChoice(battle, side, choice));
+  }
+  if (!choices.length && isLegalChoice(battle, side, "default")) {
+    choices = ["default"];
+  }
   choices.sort((a, b) => roughChoiceScore(b) - roughChoiceScore(a));
   if (maxChoices > 0) choices = choices.slice(0, maxChoices);
   return choices;
@@ -319,12 +381,23 @@ function pokemonMoveIDs(pokemon) {
   return [];
 }
 
+function pokemonSpeciesName(pokemon) {
+  if (!pokemon) return "";
+  const species = pokemon.species || pokemon.baseSpecies || pokemon.name || "";
+  if (typeof species === "string") return species;
+  if (species && typeof species === "object") {
+    return species.id || species.name || species.baseSpecies || pokemon.name || "";
+  }
+  return String(species || pokemon.name || "");
+}
+
 function pokemonSnapshot(battle, pokemon) {
   if (!pokemon) return null;
   const types = typeof pokemon.getTypes === "function" ? pokemon.getTypes() : pokemon.types || [];
+  const speciesName = pokemonSpeciesName(pokemon);
   return {
-    species: pokemon.species || pokemon.name || "",
-    name: pokemon.name || pokemon.species || "",
+    species: speciesName,
+    name: typeof pokemon.name === "string" ? pokemon.name : speciesName,
     hp: Number(pokemon.hp || 0),
     maxhp: Number(pokemon.maxhp || 0),
     hp_fraction: pokemon.maxhp ? clamp(Number(pokemon.hp || 0) / Number(pokemon.maxhp), 0, 1) : 0,
@@ -677,6 +750,98 @@ function evaluateOffline(payload) {
   };
 }
 
+function evaluateMatrixOffline(payload) {
+  const depth = Math.max(1, Number(payload.depth || 1));
+  const maxChoices = Math.max(1, Number(payload.max_choices || 12));
+  const policy = ["minimax", "mean", "robust"].includes(payload.opponent_policy)
+    ? payload.opponent_policy
+    : "robust";
+  const robustWorstWeight = Number.isFinite(Number(payload.robust_worst_weight))
+    ? Number(payload.robust_worst_weight)
+    : 0.35;
+  const side = payload.side || "p1";
+  const diagnostics = {errors: [], errorCount: 0, skippedBranches: 0, stageCounts: {}};
+  const battle = State.deserializeBattle(payload.state);
+  resetBattleLog(battle);
+
+  let ownCandidates = (payload.candidates || payload.own_candidates || [])
+    .map(normalizeChoice)
+    .filter(Boolean);
+  let opponentCandidates = (payload.opponent_candidates || [])
+    .map(normalizeChoice)
+    .filter(Boolean);
+  const opponent = otherSide(side);
+
+  if (!ownCandidates.length) {
+    try {
+      ownCandidates = legalChoicesForSide(battle, side, maxChoices);
+    } catch (error) {
+      noteError(diagnostics, "matrix-own-legal-choices", error, {
+        side,
+        depth,
+        ...battleContext(battle),
+      });
+    }
+  }
+  if (!opponentCandidates.length) {
+    try {
+      opponentCandidates = legalChoicesForSide(battle, opponent, maxChoices);
+    } catch (error) {
+      noteError(diagnostics, "matrix-opponent-legal-choices", error, {
+        side,
+        opponent,
+        depth,
+        ...battleContext(battle),
+      });
+    }
+  }
+  if (!opponentCandidates.length) opponentCandidates = [""];
+
+  const matrix = [];
+  for (const ownChoice of ownCandidates) {
+    const row = [];
+    for (const opponentChoice of opponentCandidates) {
+      if (!ownChoice || ownChoice === "forfeit") {
+        row.push(-1);
+        continue;
+      }
+      try {
+        const next = chooseBoth(battle, side, ownChoice, opponentChoice);
+        const value = depth > 1
+          ? bestValue(next, side, depth - 1, maxChoices, policy, robustWorstWeight, diagnostics)
+          : scoreBattle(next, side);
+        row.push(Number.isFinite(value) ? value : scoreBattle(battle, side));
+      } catch (error) {
+        noteError(diagnostics, "matrix-branch", error, {
+          side,
+          ownChoice,
+          opponentChoice,
+          depth,
+          ...battleContext(battle),
+        });
+        row.push(scoreBattle(battle, side));
+      }
+    }
+    matrix.push(row);
+  }
+
+  return {
+    ok: true,
+    values: matrix,
+    own_candidates: ownCandidates,
+    opponent_candidates: opponentCandidates,
+    turn: battle.turn,
+    repairs: 0,
+    simulation_errors: diagnostics.errorCount,
+    skipped_branches: diagnostics.skippedBranches,
+    error_stage_counts: diagnostics.stageCounts,
+    errors: diagnostics.errors,
+    opponent_policy: policy,
+    robust_worst_weight: clamp(robustWorstWeight, 0, 1),
+    request_state: battle.requestState,
+  };
+}
+
 function offlineStart(payload) {
   const battle = createOfflineBattle(payload);
   return {ok: true, battle: exportOfflineState(battle, Number(payload.max_choices || 0))};
@@ -731,6 +896,9 @@ async function handle(req, res) {
     }
     if (req.url === "/offline/evaluate") {
       return jsonResponse(res, 200, evaluateOffline(payload));
+    }
+    if (req.url === "/offline/matrix") {
+      return jsonResponse(res, 200, evaluateMatrixOffline(payload));
     }
     if (req.url === "/offline/choose") {
       return jsonResponse(res, 200, offlineChoose(payload));
