@@ -159,6 +159,42 @@ docker compose run --rm trainer python -u play.py --mode challenge --n 1 --p1 gr
 
 Este modo usa el equipo de `team.txt`.
 
+## Partida Local Contra PPO Recurrente Desde El Navegador
+
+Este flujo conecta el checkpoint PPO/RecurrentPPO como bot en el servidor local y deja que una persona juegue desde la pagina de Showdown.
+
+Primero levantar el servidor local:
+
+```powershell
+docker compose up -d showdown
+docker compose ps
+```
+
+Abrir en el navegador:
+
+```text
+http://localhost:8000
+```
+
+Despues, en otra terminal, dejar al bot esperando el reto:
+
+```powershell
+docker compose run --rm trainer python -u scripts/play_human_vs_ppo.py --server showdown:8000 --format gen9vgc2026regi --team team.txt --ppo-checkpoint checkpoints/vgc_final.zip --bot-name PPOBotLocal --human-name HumanoLocal --battle-timeout 3600
+```
+
+En la pagina local:
+
+- elegir el nombre `HumanoLocal`;
+- importar o elegir un equipo valido para `gen9vgc2026regi`;
+- retar a `PPOBotLocal` en el formato `gen9vgc2026regi`;
+- jugar normalmente contra el bot.
+
+Si preferis que el bot envie el reto, abrir la pagina primero con el usuario `HumanoLocal` y correr:
+
+```powershell
+docker compose run --rm trainer python -u scripts/play_human_vs_ppo.py --server showdown:8000 --format gen9vgc2026regi --team team.txt --ppo-checkpoint checkpoints/vgc_final.zip --bot-name PPOBotLocal --human-name HumanoLocal --challenge-direction send --challenge-delay 15 --battle-timeout 3600
+```
+
 ## Partida Real En Showdown Oficial
 
 Para jugar contra una persona random en ladder oficial, usar `--mode ladder` y `--server official`.

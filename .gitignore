@@ -45,6 +45,13 @@ mlruns/
 *.log
 events.out.tfevents.*
 
+# Archivos empaquetados/exportados localmente
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
 # Replays descargados y datasets derivados (pueden crecer mucho)
 data/
 
